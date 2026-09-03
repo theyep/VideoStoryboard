@@ -226,10 +226,11 @@
             align-items: center;
             margin-bottom: 25px;
             width: 100%;
+            padding-top: 10px;
         }
 
         .title-input {
-            font-size: 24px;
+            font-size: 32px;
             font-weight: bold;
             border: none;
             background: transparent;
@@ -237,6 +238,8 @@
             margin-bottom: 10px;
             width: 90%;
             outline: none;
+            line-height: 1.4;
+            padding: 4px 0;
         }
 
         .auto-expand-textarea {
@@ -250,6 +253,7 @@
             resize: none;
             overflow: hidden;
             word-break: break-all;
+            line-height: 1.4;
         }
 
         .sub-details {
@@ -393,10 +397,6 @@
 
             .board-grid {
                 grid-template-columns: repeat(3, 1fr);
-            }
-
-            .title-input {
-                font-size: 32px;
             }
 
             #storyboard-container {
@@ -788,7 +788,6 @@
             document.getElementById('file-input').click();
         }
 
-        /* 이미지 리사이즈 및 압축 처리 (용량 무제한 지원) */
         function handleImageUpload(e) {
             const file = e.target.files[0];
             if (!file || !activeImageBox) return;
@@ -799,7 +798,7 @@
                 img.src = event.target.result;
                 img.onload = function() {
                     const canvas = document.createElement('canvas');
-                    const maxW = 1200; // 가로 최대 크기 제한
+                    const maxW = 1200;
                     let width = img.naturalWidth;
                     let height = img.naturalHeight;
 
@@ -814,7 +813,6 @@
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
 
-                    // JPEG 형태로 자동 리사이즈 및 압축 (품질 0.85)
                     const resizedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
                     const ratio = `${width} / ${height}`;
 
@@ -854,6 +852,7 @@
             setStorageData(data);
         }
 
+        /* html2canvas의 input/textarea 글자 렌더링 짤림 완벽 해결 캡처 로직 */
         function exportBoard(format) {
             const exportArea = document.getElementById('export-area');
             const mainContent = document.getElementById('main-content');
@@ -863,6 +862,32 @@
 
             document.body.classList.add('capturing');
 
+            // input과 textarea 요소를 html2canvas가 잘 오려내도록 div로 임시 대체
+            const replacedElements = [];
+            const formElements = exportArea.querySelectorAll('input[type="text"], textarea');
+
+            formElements.forEach(el => {
+                const div = document.createElement('div');
+                div.innerText = el.value || el.placeholder || '';
+                
+                // 기존 스타일 복사
+                const style = window.getComputedStyle(el);
+                div.style.cssText = style.cssText;
+                div.style.display = 'block';
+                div.style.whiteSpace = 'pre-wrap';
+                div.style.wordBreak = 'break-all';
+                div.style.boxSizing = 'border-box';
+
+                // 상단 잘림 방지를 위한 추가 패딩 및 라인 하이트 조정
+                div.style.lineHeight = '1.4';
+                div.style.paddingTop = style.paddingTop || '8px';
+
+                el.parentNode.insertBefore(div, el);
+                el.style.display = 'none';
+
+                replacedElements.push({ original: el, replacement: div });
+            });
+
             html2canvas(exportArea, {
                 scale: 2,
                 useCORS: true,
@@ -871,6 +896,12 @@
                 scrollY: 0,
                 windowWidth: 1200
             }).then(canvas => {
+                // 원래 상태로 원복
+                replacedElements.forEach(item => {
+                    item.original.style.display = '';
+                    item.replacement.remove();
+                });
+
                 const link = document.createElement('a');
                 link.download = `${document.getElementById('board-title').value || 'storyboard'}_page${currentPage}.${format}`;
                 link.href = canvas.toDataURL(`image/${format === 'jpg' ? 'jpeg' : 'png'}`, 1.0);
@@ -879,6 +910,10 @@
                 document.body.classList.remove('capturing');
                 mainContent.scrollTop = prevScroll;
             }).catch(() => {
+                replacedElements.forEach(item => {
+                    item.original.style.display = '';
+                    item.replacement.remove();
+                });
                 document.body.classList.remove('capturing');
                 mainContent.scrollTop = prevScroll;
             });
