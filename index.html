@@ -211,6 +211,7 @@
         .btn-group {
             display: flex;
             gap: 8px;
+            align-items: center;
         }
 
         .export-btn {
@@ -244,12 +245,110 @@
             background-color: #c53030;
         }
 
+        .notice-btn {
+            background-color: #ed8936;
+        }
+
+        .notice-btn:hover {
+            background-color: #dd6b20;
+        }
+
         .timestamp-display {
             font-size: 12px;
             color: var(--text-color);
             opacity: 0.7;
             white-space: nowrap;
             margin-left: auto;
+        }
+
+        /* 유의사항 모달 팝업 스타일 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background-color: var(--topbar-bg);
+            color: var(--text-color);
+            padding: 24px;
+            border-radius: 12px;
+            max-width: 520px;
+            width: 90%;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--topbar-border);
+            padding-bottom: 12px;
+        }
+
+        .modal-header h3 {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-color);
+        }
+
+        .modal-close-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: var(--text-color);
+            padding: 0 4px;
+        }
+
+        .modal-body {
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .modal-subtitle {
+            display: block;
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: #e53e3e;
+        }
+
+        .modal-list {
+            list-style: none;
+            padding-left: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .modal-list li {
+            position: relative;
+            padding-left: 18px;
+            word-break: keep-all;
+        }
+
+        .modal-list li::before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            color: #ed8936;
+            font-weight: bold;
+            font-size: 18px;
+            line-height: 1.2;
         }
 
         #storyboard-container {
@@ -348,7 +447,6 @@
             gap: 8px;
         }
 
-        /* X 버튼 바로 옆까지 꽉 채우는 텍스트 입력창 스타일 */
         .card-number-input {
             font-size: 15px;
             font-weight: 600;
@@ -511,6 +609,7 @@
                 <button class="export-btn" onclick="exportBoard('png')">PNG 저장</button>
                 <button class="export-btn" onclick="exportBoard('jpeg')">JPG 저장</button>
                 <button class="export-btn pdf-btn" onclick="exportPDF()">PDF 내보내기</button>
+                <button class="export-btn notice-btn" onclick="toggleNoticeModal(true)">⚠️ 유의사항</button>
             </div>
             <div class="timestamp-display" id="timestamp-display">최종 사이트 수정: 2026년 9월 3일</div>
         </div>
@@ -532,6 +631,25 @@
         </div>
     </div>
 
+    <!-- 유의사항 모달 팝업 -->
+    <div id="notice-modal" class="modal-overlay" onclick="closeNoticeModal(event)">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⚠️ 데이터 저장 관련 유의사항</h3>
+                <button class="modal-close-btn" onclick="toggleNoticeModal(false)">✕</button>
+            </div>
+            <div class="modal-body">
+                <strong class="modal-subtitle">데이터가 삭제되는 대표적인 상황</strong>
+                <ul class="modal-list">
+                    <li><strong>PC 포맷 및 브라우저 재설치:</strong> 컴퓨터를 포맷하거나 크롬을 재설치하는 경우</li>
+                    <li><strong>크롬 데이터 삭제:</strong> 설정에서 '인터넷 사용 기록 삭제' 중 '쿠키 및 기타 사이트 데이터'를 지우는 경우</li>
+                    <li><strong>시크릿 모드 사용:</strong> 시크릿 창에서 작성하고 창을 닫는 경우</li>
+                    <li><strong>다른 브라우저/기기 접속:</strong> Chrome에서 작성한 데이터는 Edge나 다른 컴퓨터로 자동 공유되지 않음</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
     <input type="file" id="file-input" accept="image/*" onchange="handleImageUpload(event)">
 
     <script>
@@ -541,6 +659,21 @@
         const ITEMS_PER_PAGE = 9;
         const STORAGE_KEY = 'storyboards_data_v4';
         const FIXED_TIMESTAMP = "최종 사이트 수정: 2026년 9월 3일";
+
+        function toggleNoticeModal(show) {
+            const modal = document.getElementById('notice-modal');
+            if (show) {
+                modal.classList.add('show');
+            } else {
+                modal.classList.remove('show');
+            }
+        }
+
+        function closeNoticeModal(event) {
+            if (event.target.id === 'notice-modal') {
+                toggleNoticeModal(false);
+            }
+        }
 
         function updateTimestampDisplay() {
             const el = document.getElementById('timestamp-display');
