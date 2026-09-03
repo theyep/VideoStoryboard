@@ -345,9 +345,10 @@
             justify-content: space-between;
             align-items: center;
             margin: 8px 0 4px 0;
+            gap: 8px;
         }
 
-        /* 수정 가능한 번호/제목 입력창 스타일 */
+        /* X 버튼 바로 옆까지 꽉 채우는 텍스트 입력창 스타일 */
         .card-number-input {
             font-size: 15px;
             font-weight: 600;
@@ -356,8 +357,8 @@
             border: none;
             background: transparent;
             outline: none;
-            width: 120px;
-            padding: 2px 4px;
+            flex: 1;
+            padding: 2px 6px;
             border-radius: 4px;
             font-family: inherit;
             transition: background-color 0.2s;
@@ -380,6 +381,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            flex-shrink: 0;
         }
 
         .image-box {
@@ -789,7 +791,6 @@
             const header = document.createElement('div');
             header.className = 'card-header';
 
-            /* 자유롭게 수정 가능한 input 요소 */
             const numEl = document.createElement('input');
             numEl.type = 'text';
             numEl.className = 'card-number-input';
@@ -1015,7 +1016,6 @@
                 subDetails.parentNode.replaceChild(subDiv, subDetails);
             }
 
-            /* 이미지 변환 시 #1, #2 텍스트가 깨지지 않고 깔끔하게 렌더링되도록 변환 */
             const numInputs = clonedExportArea.querySelectorAll('.card-number-input');
             numInputs.forEach(input => {
                 const numDiv = clonedDoc.createElement('div');
@@ -1025,6 +1025,7 @@
                     font-weight: 600;
                     letter-spacing: -0.2px;
                     color: ${textColor};
+                    flex: 1;
                 `;
                 input.parentNode.replaceChild(numDiv, input);
             });
