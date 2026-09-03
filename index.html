@@ -36,7 +36,6 @@
             justify-content: center;
         }
 
-        /* 사이드바 오버레이 (모바일용) */
         #sidebar-overlay {
             display: none;
             position: fixed;
@@ -210,9 +209,10 @@
             align-items: center;
         }
 
+        /* 캡처 구역 - 이미지 저장 시 여백 확보 */
         #export-area {
             background-color: #eaeaea;
-            padding: 15px;
+            padding: 40px 30px;
             width: 100%;
             max-width: 1200px;
             display: flex;
@@ -321,22 +321,6 @@
             display: block;
         }
 
-        .image-box::after {
-            content: "이미지 업로드";
-            position: absolute;
-            color: white;
-            background: rgba(0,0,0,0.5);
-            padding: 6px 10px;
-            border-radius: 4px;
-            opacity: 0;
-            transition: opacity 0.2s;
-            font-size: 12px;
-        }
-
-        .image-box:hover::after {
-            opacity: 1;
-        }
-
         .card-description {
             width: 100%;
             min-height: 50px;
@@ -394,7 +378,6 @@
             display: none;
         }
 
-        /* 데스크톱 반응형 처리 (태블릿/PC) */
         @media (min-width: 768px) {
             #sidebar {
                 position: relative;
@@ -420,6 +403,14 @@
             #storyboard-container {
                 padding: 40px;
             }
+        }
+
+        /* 캡처 실행 시 임시 스타일 - 3열 구조 보장 및 삭제 버튼 숨김 */
+        .capturing .delete-card-btn {
+            display: none !important;
+        }
+        .capturing .board-grid {
+            grid-template-columns: repeat(3, 1fr) !important;
         }
     </style>
 </head>
@@ -842,20 +833,37 @@
             setStorageData(data);
         }
 
+        /* 캡처 로직 개선: 스크롤 위치 초기화 및 PC 레이아웃 고정 캡처 */
         function exportBoard(format) {
             const exportArea = document.getElementById('export-area');
+            const mainContent = document.getElementById('main-content');
+
+            // 1. 스크롤 위치를 맨 위로 강제 이동하여 타이틀 잘림 방지
+            const prevScroll = mainContent.scrollTop;
+            mainContent.scrollTop = 0;
+
+            // 2. 캡처용 클래스 적용 (모바일에서도 3열 PC 레이아웃으로 캡처)
+            document.body.classList.add('capturing');
 
             html2canvas(exportArea, {
-                scale: 3,
+                scale: 2,
                 useCORS: true,
                 logging: false,
-                windowWidth: exportArea.scrollWidth,
-                windowHeight: exportArea.scrollHeight
+                scrollX: 0,
+                scrollY: 0,
+                windowWidth: 1200
             }).then(canvas => {
                 const link = document.createElement('a');
                 link.download = `${document.getElementById('board-title').value || 'storyboard'}_page${currentPage}.${format}`;
                 link.href = canvas.toDataURL(`image/${format === 'jpg' ? 'jpeg' : 'png'}`, 1.0);
                 link.click();
+
+                // 캡처 후 상태 복원
+                document.body.classList.remove('capturing');
+                mainContent.scrollTop = prevScroll;
+            }).catch(() => {
+                document.body.classList.remove('capturing');
+                mainContent.scrollTop = prevScroll;
             });
         }
     </script>
