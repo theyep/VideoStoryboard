@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>스토리보드 생성기</title>
+    <!-- 가독성이 뛰어난 Pretendard 폰트 불러오기 -->
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
@@ -11,7 +13,7 @@
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI", Roboto, sans-serif;
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
         }
 
         :root {
@@ -280,32 +282,42 @@
 
         .title-input {
             font-size: 32px;
-            font-weight: bold;
+            font-weight: 700;
+            letter-spacing: -0.5px;
             border: none;
             background: transparent;
             text-align: center;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
             width: 90%;
             outline: none;
-            line-height: 1.4;
+            line-height: 1.3;
             padding: 6px 0;
             box-sizing: border-box;
             color: var(--text-color);
         }
 
+        /* 텍스트 입력 영역 가독성 개선 스타일 */
         .auto-expand-textarea {
             background-color: var(--card-input-bg);
             border: none;
-            padding: 10px;
-            border-radius: 4px;
-            font-size: 13px;
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 400;
             color: var(--text-color);
             outline: none;
             resize: none;
             overflow: hidden;
             word-break: break-all;
-            line-height: 1.4;
+            line-height: 1.55;
+            letter-spacing: -0.3px;
             box-sizing: border-box;
+        }
+
+        .auto-expand-textarea::placeholder {
+            color: #888;
+            opacity: 0.8;
         }
 
         .sub-details {
@@ -337,8 +349,9 @@
         }
 
         .card-number {
-            font-size: 16px;
-            font-weight: bold;
+            font-size: 15px;
+            font-weight: 600;
+            letter-spacing: -0.2px;
             color: var(--card-num-color);
         }
 
@@ -378,7 +391,7 @@
 
         .card-description {
             width: 100%;
-            min-height: 50px;
+            min-height: 52px;
             margin-top: 4px;
         }
 
@@ -423,6 +436,7 @@
             border-radius: 6px;
             cursor: pointer;
             font-size: 15px;
+            font-weight: 500;
         }
 
         .add-more-btn:hover {
@@ -946,11 +960,12 @@
                 titleDiv.innerText = titleInput.value || 'TYPE NAME';
                 titleDiv.style.cssText = `
                     font-size: 32px;
-                    font-weight: bold;
+                    font-weight: 700;
+                    letter-spacing: -0.5px;
                     text-align: center;
                     width: 100%;
-                    margin-bottom: 10px;
-                    line-height: 1.4;
+                    margin-bottom: 12px;
+                    line-height: 1.3;
                     color: ${textColor};
                     padding: 6px 0;
                     box-sizing: border-box;
@@ -964,16 +979,17 @@
                 subDiv.innerText = subDetails.value || subDetails.placeholder || '';
                 subDiv.style.cssText = `
                     background-color: ${bgBoxColor};
-                    border-radius: 4px;
-                    padding: 10px;
-                    font-size: 13px;
+                    border-radius: 6px;
+                    padding: 10px 12px;
+                    font-size: 14px;
                     color: ${subDetails.value ? textColor : '#777'};
                     width: 100%;
                     max-width: 400px;
                     min-height: 60px;
                     word-break: break-all;
                     white-space: pre-wrap;
-                    line-height: 1.4;
+                    line-height: 1.55;
+                    letter-spacing: -0.3px;
                     box-sizing: border-box;
                     text-align: left;
                 `;
@@ -986,16 +1002,17 @@
                 descDiv.innerText = desc.value || desc.placeholder || '';
                 descDiv.style.cssText = `
                     background-color: ${bgBoxColor};
-                    border-radius: 4px;
-                    padding: 10px;
-                    font-size: 13px;
+                    border-radius: 6px;
+                    padding: 10px 12px;
+                    font-size: 14px;
                     color: ${desc.value ? textColor : '#777'};
                     width: 100%;
-                    min-height: 50px;
+                    min-height: 52px;
                     margin-top: 4px;
                     word-break: break-all;
                     white-space: pre-wrap;
-                    line-height: 1.4;
+                    line-height: 1.55;
+                    letter-spacing: -0.3px;
                     box-sizing: border-box;
                     text-align: left;
                 `;
