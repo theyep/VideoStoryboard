@@ -28,7 +28,6 @@
             --item-bg: #2a2a2a;
         }
 
-        /* 다크 모드 테마 변수 설정 */
         body.dark-mode {
             --bg-color: #121212;
             --text-color: #e0e0e0;
@@ -488,7 +487,7 @@
         <div id="storyboard-container">
             <div id="export-area">
                 <div class="header-section">
-                    <div class="timestamp-display" id="timestamp-display">최종 수정: -</div>
+                    <div class="timestamp-display" id="timestamp-display">최종 수정: 2026년 9월 3일</div>
                     <input type="text" class="title-input" id="board-title" value="TYPE NAME" onblur="checkTitleEmpty(this)" oninput="updateTitle(this.value)">
                     <textarea class="auto-expand-textarea sub-details" id="sub-details" placeholder="Sub Details (영상 사이즈, 프레임 등)" oninput="handleTextareaInput(this)"></textarea>
                 </div>
@@ -511,22 +510,13 @@
         let currentPage = 1;
         const ITEMS_PER_PAGE = 9;
         const STORAGE_KEY = 'storyboards_data_v3';
+        const FIXED_TIMESTAMP = "최종 수정: 2026년 9월 3일";
 
-        // 날짜, 시간, 시간대 포맷 함수
-        function getFormattedTimestamp() {
-            const now = new Date();
-            const dateStr = now.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' });
-            const timeStr = now.toLocaleTimeString('ko-KR', { hour12: false });
-            const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-            return `최종 수정: ${dateStr} ${timeStr} (${timeZone})`;
-        }
-
-        function updateTimestampDisplay(text) {
+        function updateTimestampDisplay() {
             const el = document.getElementById('timestamp-display');
-            if (el) el.innerText = text || getFormattedTimestamp();
+            if (el) el.innerText = FIXED_TIMESTAMP;
         }
 
-        // 다크 모드 토글 및 저장 로직
         function toggleDarkMode() {
             const isDark = document.body.classList.toggle('dark-mode');
             const btn = document.getElementById('theme-toggle-btn');
@@ -578,12 +568,10 @@
         function createNewBoard() {
             const data = getStorageData();
             const id = 'board_' + Date.now();
-            const timeStamp = getFormattedTimestamp();
 
             data.boards[id] = {
                 title: 'TYPE NAME',
                 subDetails: '',
-                updatedAt: timeStamp,
                 cards: [
                     { img: '', desc: '', ratio: '16/9' },
                     { img: '', desc: '', ratio: '16/9' },
@@ -728,7 +716,7 @@
 
             titleInput.value = board.title;
             subDetailsInput.value = board.subDetails;
-            updateTimestampDisplay(board.updatedAt || getFormattedTimestamp());
+            updateTimestampDisplay();
 
             autoExpand(subDetailsInput);
             renderGrid();
@@ -922,12 +910,10 @@
             const board = data.boards[currentBoardId];
             if (!board) return;
 
-            const timeStamp = getFormattedTimestamp();
             board.title = document.getElementById('board-title').value || 'TYPE NAME';
             board.subDetails = document.getElementById('sub-details').value;
-            board.updatedAt = timeStamp;
 
-            updateTimestampDisplay(timeStamp);
+            updateTimestampDisplay();
 
             const gridCards = document.querySelectorAll('.card');
             const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -943,7 +929,6 @@
             setStorageData(data);
         }
 
-        /* 캡처용 공통 클론 변환 함수 */
         function prepareCloneForCapture(clonedDoc) {
             const clonedExportArea = clonedDoc.getElementById('export-area');
             if (!clonedExportArea) return;
@@ -952,7 +937,6 @@
             const bgBoxColor = isDark ? '#2d2d2d' : '#d0d0d0';
             const textColor = isDark ? '#e0e0e0' : '#333';
 
-            // 저장 시 최신 업데이트 날짜 텍스트 숨기기
             const timeEl = clonedDoc.getElementById('timestamp-display');
             if (timeEl) {
                 timeEl.style.display = 'none';
@@ -1021,7 +1005,6 @@
             });
         }
 
-        /* 이미지 (PNG/JPG) 내보내기 */
         function exportBoard(format) {
             const exportArea = document.getElementById('export-area');
             const mainContent = document.getElementById('main-content');
@@ -1053,7 +1036,6 @@
             });
         }
 
-        /* PDF 문서 내보내기 */
         function exportPDF() {
             const exportArea = document.getElementById('export-area');
             const mainContent = document.getElementById('main-content');
@@ -1076,7 +1058,7 @@
                 const pdf = new jsPDF('p', 'mm', 'a4');
 
                 const imgData = canvas.toDataURL('image/jpeg', 0.95);
-                const imgWidth = 210; // A4 가로 (mm)
+                const imgWidth = 210;
                 const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
                 pdf.addImage(imgData, 'JPEG', 0, 10, imgWidth, imgHeight);
