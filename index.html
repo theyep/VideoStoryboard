@@ -10,7 +10,7 @@
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI", Roboto, sans-serif;
         }
 
         body {
@@ -226,9 +226,9 @@
             align-items: center;
             margin-bottom: 25px;
             width: 100%;
-            padding-top: 10px;
         }
 
+        /* 타이틀 폰트 및 패딩 안정화 */
         .title-input {
             font-size: 32px;
             font-weight: bold;
@@ -238,14 +238,17 @@
             margin-bottom: 10px;
             width: 90%;
             outline: none;
-            line-height: 1.4;
-            padding: 4px 0;
+            line-height: 1.5;
+            padding: 10px 0;
+            box-sizing: content-box;
+            display: block;
         }
 
+        /* 박스 영역 렌더링 유지 */
         .auto-expand-textarea {
-            background-color: #d0d0d0;
+            background-color: #d0d0d0 !important;
             border: none;
-            padding: 10px;
+            padding: 12px;
             border-radius: 4px;
             font-size: 13px;
             color: #333;
@@ -253,7 +256,8 @@
             resize: none;
             overflow: hidden;
             word-break: break-all;
-            line-height: 1.4;
+            line-height: 1.5;
+            box-sizing: border-box;
         }
 
         .sub-details {
@@ -852,7 +856,7 @@
             setStorageData(data);
         }
 
-        /* html2canvas의 input/textarea 글자 렌더링 짤림 완벽 해결 캡처 로직 */
+        /* html2canvas 렌더링 최적화 캡처 함수 */
         function exportBoard(format) {
             const exportArea = document.getElementById('export-area');
             const mainContent = document.getElementById('main-content');
@@ -862,32 +866,6 @@
 
             document.body.classList.add('capturing');
 
-            // input과 textarea 요소를 html2canvas가 잘 오려내도록 div로 임시 대체
-            const replacedElements = [];
-            const formElements = exportArea.querySelectorAll('input[type="text"], textarea');
-
-            formElements.forEach(el => {
-                const div = document.createElement('div');
-                div.innerText = el.value || el.placeholder || '';
-                
-                // 기존 스타일 복사
-                const style = window.getComputedStyle(el);
-                div.style.cssText = style.cssText;
-                div.style.display = 'block';
-                div.style.whiteSpace = 'pre-wrap';
-                div.style.wordBreak = 'break-all';
-                div.style.boxSizing = 'border-box';
-
-                // 상단 잘림 방지를 위한 추가 패딩 및 라인 하이트 조정
-                div.style.lineHeight = '1.4';
-                div.style.paddingTop = style.paddingTop || '8px';
-
-                el.parentNode.insertBefore(div, el);
-                el.style.display = 'none';
-
-                replacedElements.push({ original: el, replacement: div });
-            });
-
             html2canvas(exportArea, {
                 scale: 2,
                 useCORS: true,
@@ -896,12 +874,6 @@
                 scrollY: 0,
                 windowWidth: 1200
             }).then(canvas => {
-                // 원래 상태로 원복
-                replacedElements.forEach(item => {
-                    item.original.style.display = '';
-                    item.replacement.remove();
-                });
-
                 const link = document.createElement('a');
                 link.download = `${document.getElementById('board-title').value || 'storyboard'}_page${currentPage}.${format}`;
                 link.href = canvas.toDataURL(`image/${format === 'jpg' ? 'jpeg' : 'png'}`, 1.0);
@@ -910,10 +882,6 @@
                 document.body.classList.remove('capturing');
                 mainContent.scrollTop = prevScroll;
             }).catch(() => {
-                replacedElements.forEach(item => {
-                    item.original.style.display = '';
-                    item.replacement.remove();
-                });
                 document.body.classList.remove('capturing');
                 mainContent.scrollTop = prevScroll;
             });
