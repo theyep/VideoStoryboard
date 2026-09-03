@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <!-- 모바일 접속 시 PC 해상도 기준(1400px)으로 화면을 맞추도록 뷰포트 수정 -->
+    <meta name="viewport" content="width=1400, initial-scale=0.3, maximum-scale=1.0, user-scalable=yes">
+    <title>스토리보드 생성기</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        body {
+            display: flex;
+            height: 100vh;
+            background-color: #f5f5f5;
+            color: #333;
+            overflow: hidden;
+            /* 모든 디바이스에서 최적화된 PC 레이아웃 최소 너비 고정 */
+            min-width: 1200px; 
+        }
+
+        /* 사이드바 */
+        #sidebar {
+            width: 240px;
+            background-color: #1e1e1e;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            padding: 20px 10px;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        #sidebar h2 {
+            font-size: 16px;
+            padding: 0 10px;
+            margin-bottom: 10px;
+            color: #aaa;
+        }
+
+        .board-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        .board-item-wrapper {
+            display: flex;
+            align-items: center;
+            background-color: #2a2a2a;
+            border-radius: 6px;
+            padding-right: 8px;
+            cursor: grab;
+            transition: transform 0.2s, opacity 0.2s;
+        }
+
+        .board-item-wrapper:active {
+            cursor: grabbing;
+        }
+
+        .board-item-wrapper.dragging {
+            opacity: 0.5;
+            background-color: #444;
+        }
+
+        .board-item-wrapper.active {
+            background-color: #007acc;
+        }
+
+        .drag-handle {
+            padding: 0 8px;
+            color: #888;
+            font-size: 14px;
+            user-select: none;
+        }
+
+        .board-item {
+            padding: 10px 4px;
+            flex-grow: 1;
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: 14px;
+            color: #fff;
+            user-select: none;
+        }
+
+        .delete-board-btn {
+            background: none;
+            border: none;
+            color: #ff6b6b;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+        .delete-board-btn:hover {
+            background-color: rgba(255, 0, 0, 0.2);
+        }
+
+        .add-btn {
+            padding: 12px;
+            background-color: #333;
+            color: white;
+            border: 1px dashed #555;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+
+        .add-btn:hover {
+            background-color: #444;
+        }
+
+        /* 메인 콘텐츠 영역 */
+        #main-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow-y: auto;
+            overflow-x: auto;
+        }
+
+        .top-bar {
+            padding: 15px 30px;
+            background-color: #fff;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .export-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            background-color: #007acc;
+            color: white;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .export-btn:hover {
+            background-color: #005999;
+        }
+
+        /* 스토리보드 캔버스 영역 */
+        #storyboard-container {
+            padding: 40px;
+            background-color: #eaeaea;
+            min-height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #export-area {
+            background-color: #eaeaea;
+            padding: 20px;
+            width: 100%;
+            max-width: 1400px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* 헤더 섹션 */
+        .header-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 40px;
+            width: 100%;
+        }
+
+        .title-input {
+            font-size: 32px;
+            font-weight: bold;
+            border: none;
+            background: transparent;
+            text-align: center;
+            margin-bottom: 15px;
+            width: 80%;
+            outline: none;
+        }
+
+        .auto-expand-textarea {
+            background-color: #d0d0d0;
+            border: none;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #333;
+            outline: none;
+            resize: none;
+            overflow: hidden;
+            word-break: break-all;
+        }
+
+        .sub-details {
+            width: 320px;
+            min-height: 80px;
+        }
+
+        /* 카드 그리드 - PC와 동일한 3열 구조 보장 */
+        .board-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: flex-start;
+            width: 100%;
+        }
+
+        .card {
+            display: flex;
+            flex-direction: column;
+            width: calc(33.333% - 14px);
+            min-width: 280px;
+            background: transparent;
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 10px 0 5px 0;
+        }
+
+        .card-number {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .delete-card-btn {
+            background: #ff4d4d;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .image-box {
+            width: 100%;
+            background-color: #999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            aspect-ratio: 16 / 9; 
+            border-radius: 4px;
+        }
+
+        .image-box img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; 
+            display: block;
+        }
+
+        .image-box::after {
+            content: "이미지 업로드";
+            position: absolute;
+            color: white;
+            background: rgba(0,0,0,0.5);
+            padding: 8px 12px;
+            border-radius: 4px;
+            opacity: 0;
+            transition: opacity 0.2s;
+            font-size: 14px;
+        }
+
+        .image-box:hover::after {
+            opacity: 1;
+        }
+
+        .card-description {
+            width: 100%;
+            min-height: 60px;
+            margin-top: 5px;
+        }
+
+        /* 컨트롤 영역 */
+        .controls-container {
+            margin-top: 30px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .pagination {
+            display: flex;
+            gap: 8px;
+        }
+
+        .page-btn {
+            padding: 6px 12px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .page-btn.active {
+            background-color: #007acc;
+            color: white;
+            border-color: #007acc;
+        }
+
+        .add-more-btn {
+            padding: 12px 30px;
+            background-color: #555;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .add-more-btn:hover {
+            background-color: #333;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 사이드바 -->
+    <div id="sidebar">
+        <h2>스토리보드 목록</h2>
+        <div class="board-list" id="board-list"></div>
+        <button class="add-btn" onclick="createNewBoard()">+</button>
+    </div>
+
+    <!-- 메인 영역 -->
+    <div id="main-content">
+        <div class="top-bar">
+            <button class="export-btn" onclick="exportBoard('png')">Download as PNG</button>
+            <button class="export-btn" onclick="exportBoard('jpeg')">Download as JPG</button>
+        </div>
+
+        <div id="storyboard-container">
+            <div id="export-area">
+                <div class="header-section">
+                    <input type="text" class="title-input" id="board-title" value="TYPE NAME" onblur="checkTitleEmpty(this)" oninput="updateTitle(this.value)">
+                    <textarea class="auto-expand-textarea sub-details" id="sub-details" placeholder="Sub Details (영상 사이즈, 프레임 등)" oninput="handleTextareaInput(this)"></textarea>
+                </div>
+
+                <div class="board-grid" id="board-grid"></div>
+            </div>
+
+            <div class="controls-container">
+                <div class="pagination" id="pagination"></div>
+                <button class="add-more-btn" onclick="addCards(3)">+ 3개 추가하기</button>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="file-input" accept="image/*" onchange="handleImageUpload(event)">
+
+    <script>
+        let currentBoardId = null;
+        let activeImageBox = null;
+        let currentPage = 1;
+        const ITEMS_PER_PAGE = 9;
+        const STORAGE_KEY = 'storyboards_data_v3';
+
+        function getStorageData() {
+            return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { order: [], boards: {} };
+        }
+
+        function setStorageData(data) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }
+
+        window.onload = () => {
+            const data = getStorageData();
+            if (!data.order || data.order.length === 0) {
+                createNewBoard();
+            } else {
+                currentBoardId = data.order[0];
+                renderSidebar();
+                loadBoard(currentBoardId);
+            }
+        };
+
+        function createNewBoard() {
+            const data = getStorageData();
+            const id = 'board_' + Date.now();
+            
+            data.boards[id] = {
+                title: 'TYPE NAME',
+                subDetails: '',
+                cards: [
+                    { img: '', desc: '', ratio: '16/9' },
+                    { img: '', desc: '', ratio: '16/9' },
+                    { img: '', desc: '', ratio: '16/9' }
+                ]
+            };
+            if (!data.order) data.order = [];
+            data.order.push(id);
+
+            setStorageData(data);
+            currentBoardId = id;
+            currentPage = 1;
+            renderSidebar();
+            loadBoard(id);
+        }
+
+        function deleteBoard(id, e) {
+            e.stopPropagation();
+            if (!confirm("해당 스토리보드를 삭제하시겠습니까?")) return;
+
+            const data = getStorageData();
+            delete data.boards[id];
+            data.order = data.order.filter(boardId => boardId !== id);
+            
+            setStorageData(data);
+
+            if (data.order.length > 0) {
+                currentBoardId = data.order[0];
+            } else {
+                createNewBoard();
+                return;
+            }
+            renderSidebar();
+            loadBoard(currentBoardId);
+        }
+
+        function renderSidebar() {
+            const data = getStorageData();
+            const listEl = document.getElementById('board-list');
+            listEl.innerHTML = '';
+
+            data.order.forEach(id => {
+                const board = data.boards[id];
+                if (!board) return;
+
+                const wrapper = document.createElement('div');
+                wrapper.className = `board-item-wrapper ${id === currentBoardId ? 'active' : ''}`;
+                wrapper.draggable = true;
+                wrapper.dataset.id = id;
+
+                const handle = document.createElement('span');
+                handle.className = 'drag-handle';
+                handle.innerHTML = '⋮⋮';
+
+                const item = document.createElement('div');
+                item.className = 'board-item';
+                item.innerText = board.title || 'TYPE NAME';
+                item.onclick = () => {
+                    currentBoardId = id;
+                    currentPage = 1;
+                    renderSidebar();
+                    loadBoard(id);
+                };
+
+                const delBtn = document.createElement('button');
+                delBtn.className = 'delete-board-btn';
+                delBtn.innerText = '✕';
+                delBtn.onclick = (e) => deleteBoard(id, e);
+
+                wrapper.appendChild(handle);
+                wrapper.appendChild(item);
+                wrapper.appendChild(delBtn);
+
+                addDragEvents(wrapper);
+
+                listEl.appendChild(wrapper);
+            });
+        }
+
+        let draggedItem = null;
+
+        function addDragEvents(el) {
+            el.addEventListener('dragstart', (e) => {
+                draggedItem = el;
+                setTimeout(() => el.classList.add('dragging'), 0);
+            });
+
+            el.addEventListener('dragend', () => {
+                el.classList.remove('dragging');
+                draggedItem = null;
+                saveNewOrder();
+            });
+
+            el.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const listEl = document.getElementById('board-list');
+                const afterElement = getDragAfterElement(listEl, e.clientY);
+                if (afterElement == null) {
+                    listEl.appendChild(draggedItem);
+                } else {
+                    listEl.insertBefore(draggedItem, afterElement);
+                }
+            });
+        }
+
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.board-item-wrapper:not(.dragging)')];
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        function saveNewOrder() {
+            const data = getStorageData();
+            const newOrder = [];
+            document.querySelectorAll('.board-item-wrapper').forEach(wrapper => {
+                newOrder.push(wrapper.dataset.id);
+            });
+            data.order = newOrder;
+            setStorageData(data);
+        }
+
+        function loadBoard(id) {
+            const data = getStorageData();
+            const board = data.boards[id];
+            if (!board) return;
+
+            const titleInput = document.getElementById('board-title');
+            const subDetailsInput = document.getElementById('sub-details');
+
+            titleInput.value = board.title;
+            subDetailsInput.value = board.subDetails;
+            
+            autoExpand(subDetailsInput);
+            renderGrid();
+        }
+
+        function renderGrid() {
+            const data = getStorageData();
+            const board = data.boards[currentBoardId];
+            if (!board) return;
+
+            const grid = document.getElementById('board-grid');
+            grid.innerHTML = '';
+
+            const totalCards = board.cards.length;
+            const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+            const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, totalCards);
+            const pageCards = board.cards.slice(startIndex, endIndex);
+
+            pageCards.forEach((cardData, index) => {
+                const globalIndex = startIndex + index;
+                grid.appendChild(createCardElement(globalIndex + 1, cardData.img, cardData.desc, cardData.ratio, globalIndex));
+            });
+
+            renderPagination(totalCards);
+        }
+
+        function createCardElement(number, imgSrc, descText, ratio, globalIndex) {
+            const card = document.createElement('div');
+            card.className = 'card';
+
+            const imgBox = document.createElement('div');
+            imgBox.className = 'image-box';
+            if (ratio) imgBox.style.aspectRatio = ratio;
+
+            if (imgSrc) {
+                const img = document.createElement('img');
+                img.src = imgSrc;
+                imgBox.appendChild(img);
+            }
+            imgBox.onclick = () => triggerImageUpload(imgBox, globalIndex);
+
+            const header = document.createElement('div');
+            header.className = 'card-header';
+
+            const numEl = document.createElement('div');
+            numEl.className = 'card-number';
+            numEl.innerText = `#${number}`;
+
+            const delCardBtn = document.createElement('button');
+            delCardBtn.className = 'delete-card-btn';
+            delCardBtn.innerText = '✕';
+            delCardBtn.onclick = () => deleteCard(globalIndex);
+
+            header.appendChild(numEl);
+            header.appendChild(delCardBtn);
+
+            const descEl = document.createElement('textarea');
+            descEl.className = 'auto-expand-textarea card-description';
+            descEl.placeholder = 'description';
+            descEl.value = descText || '';
+            descEl.oninput = (e) => {
+                handleTextareaInput(e.target);
+                saveCurrentBoardData();
+            };
+
+            card.appendChild(imgBox);
+            card.appendChild(header);
+            card.appendChild(descEl);
+
+            setTimeout(() => autoExpand(descEl), 0);
+
+            return card;
+        }
+
+        function renderPagination(totalItems) {
+            const paginationEl = document.getElementById('pagination');
+            paginationEl.innerHTML = '';
+            const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE) || 1;
+
+            for (let i = 1; i <= totalPages; i++) {
+                const btn = document.createElement('button');
+                btn.className = `page-btn ${i === currentPage ? 'active' : ''}`;
+                btn.innerText = i;
+                btn.onclick = () => {
+                    currentPage = i;
+                    renderGrid();
+                };
+                paginationEl.appendChild(btn);
+            }
+        }
+
+        function autoExpand(field) {
+            field.style.height = 'inherit';
+            const computed = window.getComputedStyle(field);
+            const height = field.scrollHeight + parseInt(computed.getPropertyValue('border-top-width'), 10) + parseInt(computed.getPropertyValue('border-bottom-width'), 10);
+            field.style.height = height + 'px';
+        }
+
+        function handleTextareaInput(field) {
+            autoExpand(field);
+            saveCurrentBoardData();
+        }
+
+        function addCards(count = 3) {
+            const data = getStorageData();
+            const board = data.boards[currentBoardId];
+
+            for (let i = 0; i < count; i++) {
+                board.cards.push({ img: '', desc: '', ratio: '16/9' });
+            }
+
+            setStorageData(data);
+            currentPage = Math.ceil(board.cards.length / ITEMS_PER_PAGE);
+            renderGrid();
+        }
+
+        function deleteCard(index) {
+            const data = getStorageData();
+            const board = data.boards[currentBoardId];
+
+            board.cards.splice(index, 1);
+            setStorageData(data);
+
+            const totalPages = Math.ceil(board.cards.length / ITEMS_PER_PAGE) || 1;
+            if (currentPage > totalPages) currentPage = totalPages;
+
+            renderGrid();
+        }
+
+        function checkTitleEmpty(input) {
+            if (input.value.trim() === '') {
+                input.value = 'TYPE NAME';
+            }
+            saveCurrentBoardData();
+            renderSidebar();
+        }
+
+        function updateTitle() {
+            renderSidebar();
+        }
+
+        function triggerImageUpload(box, globalIndex) {
+            activeImageBox = { box, globalIndex };
+            document.getElementById('file-input').click();
+        }
+
+        function handleImageUpload(e) {
+            const file = e.target.files[0];
+            if (!file || !activeImageBox) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = function() {
+                    const data = getStorageData();
+                    const ratio = `${img.naturalWidth} / ${img.naturalHeight}`;
+                    
+                    data.boards[currentBoardId].cards[activeImageBox.globalIndex].img = event.target.result;
+                    data.boards[currentBoardId].cards[activeImageBox.globalIndex].ratio = ratio;
+
+                    setStorageData(data);
+                    renderGrid();
+                };
+            };
+            reader.readAsDataURL(file);
+            e.target.value = '';
+        }
+
+        function saveCurrentBoardData() {
+            if (!currentBoardId) return;
+
+            const data = getStorageData();
+            const board = data.boards[currentBoardId];
+            if (!board) return;
+
+            board.title = document.getElementById('board-title').value || 'TYPE NAME';
+            board.subDetails = document.getElementById('sub-details').value;
+
+            const gridCards = document.querySelectorAll('.card');
+            const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+
+            gridCards.forEach((cardEl, idx) => {
+                const globalIndex = startIndex + idx;
+                const descVal = cardEl.querySelector('.card-description').value;
+                if (board.cards[globalIndex]) {
+                    board.cards[globalIndex].desc = descVal;
+                }
+            });
+
+            setStorageData(data);
+        }
+
+        function exportBoard(format) {
+            const exportArea = document.getElementById('export-area');
+
+            html2canvas(exportArea, {
+                scale: 3,
+                useCORS: true,
+                logging: false,
+                windowWidth: exportArea.scrollWidth,
+                windowHeight: exportArea.scrollHeight
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `${document.getElementById('board-title').value || 'storyboard'}_page${currentPage}.${format}`;
+                link.href = canvas.toDataURL(`image/${format === 'jpg' ? 'jpeg' : 'png'}`, 1.0);
+                link.click();
+            });
+        }
+    </script>
+</body>
+</html>
