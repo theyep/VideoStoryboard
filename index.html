@@ -266,6 +266,16 @@
             align-items: center;
             margin-bottom: 25px;
             width: 100%;
+            position: relative;
+        }
+
+        .timestamp-display {
+            align-self: flex-end;
+            font-size: 12px;
+            color: var(--text-color);
+            opacity: 0.7;
+            margin-bottom: 6px;
+            white-space: nowrap;
         }
 
         .title-input {
@@ -478,6 +488,7 @@
         <div id="storyboard-container">
             <div id="export-area">
                 <div class="header-section">
+                    <div class="timestamp-display" id="timestamp-display">최종 수정: -</div>
                     <input type="text" class="title-input" id="board-title" value="TYPE NAME" onblur="checkTitleEmpty(this)" oninput="updateTitle(this.value)">
                     <textarea class="auto-expand-textarea sub-details" id="sub-details" placeholder="Sub Details (영상 사이즈, 프레임 등)" oninput="handleTextareaInput(this)"></textarea>
                 </div>
@@ -500,6 +511,20 @@
         let currentPage = 1;
         const ITEMS_PER_PAGE = 9;
         const STORAGE_KEY = 'storyboards_data_v3';
+
+        // 날짜, 시간, 시간대 포맷 함수
+        function getFormattedTimestamp() {
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' });
+            const timeStr = now.toLocaleTimeString('ko-KR', { hour12: false });
+            const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            return `최종 수정: ${dateStr} ${timeStr} (${timeZone})`;
+        }
+
+        function updateTimestampDisplay(text) {
+            const el = document.getElementById('timestamp-display');
+            if (el) el.innerText = text || getFormattedTimestamp();
+        }
 
         // 다크 모드 토글 및 저장 로직
         function toggleDarkMode() {
@@ -553,10 +578,12 @@
         function createNewBoard() {
             const data = getStorageData();
             const id = 'board_' + Date.now();
-            
+            const timeStamp = getFormattedTimestamp();
+
             data.boards[id] = {
                 title: 'TYPE NAME',
                 subDetails: '',
+                updatedAt: timeStamp,
                 cards: [
                     { img: '', desc: '', ratio: '16/9' },
                     { img: '', desc: '', ratio: '16/9' },
@@ -585,7 +612,7 @@
             const data = getStorageData();
             delete data.boards[id];
             data.order = data.order.filter(boardId => boardId !== id);
-            
+
             setStorageData(data);
 
             if (data.order.length > 0) {
@@ -701,7 +728,8 @@
 
             titleInput.value = board.title;
             subDetailsInput.value = board.subDetails;
-            
+            updateTimestampDisplay(board.updatedAt || getFormattedTimestamp());
+
             autoExpand(subDetailsInput);
             renderGrid();
         }
@@ -894,8 +922,12 @@
             const board = data.boards[currentBoardId];
             if (!board) return;
 
+            const timeStamp = getFormattedTimestamp();
             board.title = document.getElementById('board-title').value || 'TYPE NAME';
             board.subDetails = document.getElementById('sub-details').value;
+            board.updatedAt = timeStamp;
+
+            updateTimestampDisplay(timeStamp);
 
             const gridCards = document.querySelectorAll('.card');
             const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -919,6 +951,12 @@
             const isDark = document.body.classList.contains('dark-mode');
             const bgBoxColor = isDark ? '#2d2d2d' : '#d0d0d0';
             const textColor = isDark ? '#e0e0e0' : '#333';
+
+            const timeEl = clonedDoc.getElementById('timestamp-display');
+            if (timeEl) {
+                timeEl.style.color = textColor;
+                timeEl.style.opacity = '0.8';
+            }
 
             const titleInput = clonedDoc.getElementById('board-title');
             if (titleInput) {
@@ -1036,12 +1074,11 @@
             }).then(canvas => {
                 const { jsPDF } = window.jspdf;
                 const pdf = new jsPDF('p', 'mm', 'a4');
-                
+
                 const imgData = canvas.toDataURL('image/jpeg', 0.95);
                 const imgWidth = 210; // A4 가로 (mm)
-                const pageHeight = 297; // A4 세로 (mm)
                 const imgHeight = (canvas.height * imgWidth) / canvas.width;
-                
+
                 pdf.addImage(imgData, 'JPEG', 0, 10, imgWidth, imgHeight);
                 pdf.save(`${document.getElementById('board-title').value || 'storyboard'}_page${currentPage}.pdf`);
 
