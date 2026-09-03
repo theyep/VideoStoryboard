@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>스토리보드 생성기</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -13,16 +14,43 @@
             font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI", Roboto, sans-serif;
         }
 
+        :root {
+            --bg-color: #f5f5f5;
+            --text-color: #333;
+            --sidebar-bg: #1e1e1e;
+            --topbar-bg: #fff;
+            --topbar-border: #ddd;
+            --container-bg: #eaeaea;
+            --card-input-bg: #d0d0d0;
+            --card-num-color: #333;
+            --btn-bg: #007acc;
+            --btn-hover: #005999;
+            --item-bg: #2a2a2a;
+        }
+
+        /* 다크 모드 테마 변수 설정 */
+        body.dark-mode {
+            --bg-color: #121212;
+            --text-color: #e0e0e0;
+            --sidebar-bg: #181818;
+            --topbar-bg: #1e1e1e;
+            --topbar-border: #333;
+            --container-bg: #1e1e1e;
+            --card-input-bg: #2d2d2d;
+            --card-num-color: #e0e0e0;
+            --item-bg: #2c2c2c;
+        }
+
         body {
             display: flex;
             height: 100vh;
-            background-color: #f5f5f5;
-            color: #333;
+            background-color: var(--bg-color);
+            color: var(--text-color);
             overflow: hidden;
             position: relative;
+            transition: background-color 0.3s, color 0.3s;
         }
 
-        /* 사이드바 토글 버튼 */
         .toggle-btn {
             background: #1e1e1e;
             color: white;
@@ -47,10 +75,9 @@
             z-index: 998;
         }
 
-        /* 사이드바 */
         #sidebar {
             width: 260px;
-            background-color: #1e1e1e;
+            background-color: var(--sidebar-bg);
             color: #fff;
             display: flex;
             flex-direction: column;
@@ -87,7 +114,7 @@
         .board-item-wrapper {
             display: flex;
             align-items: center;
-            background-color: #2a2a2a;
+            background-color: var(--item-bg);
             border-radius: 6px;
             padding-right: 8px;
             cursor: grab;
@@ -104,7 +131,7 @@
         }
 
         .board-item-wrapper.active {
-            background-color: #007acc;
+            background-color: var(--btn-bg);
         }
 
         .drag-handle {
@@ -157,7 +184,6 @@
             background-color: #444;
         }
 
-        /* 메인 콘텐츠 영역 */
         #main-content {
             flex-grow: 1;
             display: flex;
@@ -169,8 +195,8 @@
 
         .top-bar {
             padding: 10px 20px;
-            background-color: #fff;
-            border-bottom: 1px solid #ddd;
+            background-color: var(--topbar-bg);
+            border-bottom: 1px solid var(--topbar-border);
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -188,7 +214,7 @@
             padding: 8px 12px;
             border: none;
             border-radius: 4px;
-            background-color: #007acc;
+            background-color: var(--btn-bg);
             color: white;
             cursor: pointer;
             font-weight: 500;
@@ -196,13 +222,28 @@
         }
 
         .export-btn:hover {
-            background-color: #005999;
+            background-color: var(--btn-hover);
         }
 
-        /* 스토리보드 캔버스 영역 */
+        .theme-btn {
+            background-color: #4A5568;
+        }
+
+        .theme-btn:hover {
+            background-color: #2D3748;
+        }
+
+        .pdf-btn {
+            background-color: #e53e3e;
+        }
+
+        .pdf-btn:hover {
+            background-color: #c53030;
+        }
+
         #storyboard-container {
             padding: 20px 10px;
-            background-color: #eaeaea;
+            background-color: var(--container-bg);
             min-height: calc(100vh - 60px);
             display: flex;
             flex-direction: column;
@@ -210,7 +251,7 @@
         }
 
         #export-area {
-            background-color: #eaeaea;
+            background-color: var(--container-bg);
             padding: 40px 30px;
             width: 100%;
             max-width: 1200px;
@@ -219,7 +260,6 @@
             align-items: center;
         }
 
-        /* 헤더 섹션 */
         .header-section {
             display: flex;
             flex-direction: column;
@@ -240,16 +280,16 @@
             line-height: 1.4;
             padding: 6px 0;
             box-sizing: border-box;
-            color: #333;
+            color: var(--text-color);
         }
 
         .auto-expand-textarea {
-            background-color: #d0d0d0;
+            background-color: var(--card-input-bg);
             border: none;
             padding: 10px;
             border-radius: 4px;
             font-size: 13px;
-            color: #333;
+            color: var(--text-color);
             outline: none;
             resize: none;
             overflow: hidden;
@@ -264,7 +304,6 @@
             min-height: 60px;
         }
 
-        /* 카드 그리드 */
         .board-grid {
             display: grid;
             grid-template-columns: 1fr;
@@ -290,6 +329,7 @@
         .card-number {
             font-size: 16px;
             font-weight: bold;
+            color: var(--card-num-color);
         }
 
         .delete-card-btn {
@@ -308,7 +348,7 @@
 
         .image-box {
             width: 100%;
-            background-color: #999;
+            background-color: #666;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -332,7 +372,6 @@
             margin-top: 4px;
         }
 
-        /* 컨트롤 영역 */
         .controls-container {
             margin-top: 25px;
             width: 100%;
@@ -352,17 +391,18 @@
 
         .page-btn {
             padding: 6px 12px;
-            background-color: #fff;
-            border: 1px solid #ccc;
+            background-color: var(--topbar-bg);
+            border: 1px solid var(--topbar-border);
+            color: var(--text-color);
             border-radius: 4px;
             cursor: pointer;
             font-weight: 500;
         }
 
         .page-btn.active {
-            background-color: #007acc;
+            background-color: var(--btn-bg);
             color: white;
-            border-color: #007acc;
+            border-color: var(--btn-bg);
         }
 
         .add-more-btn {
@@ -418,20 +458,20 @@
 
     <div id="sidebar-overlay" onclick="toggleSidebar()"></div>
 
-    <!-- 사이드바 -->
     <div id="sidebar">
         <h2>스토리보드 목록</h2>
         <div class="board-list" id="board-list"></div>
         <button class="add-btn" onclick="createNewBoard()">+</button>
     </div>
 
-    <!-- 메인 영역 -->
     <div id="main-content">
         <div class="top-bar">
             <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
             <div class="btn-group">
-                <button class="export-btn" onclick="exportBoard('png')">Download PNG</button>
-                <button class="export-btn" onclick="exportBoard('jpeg')">Download JPG</button>
+                <button class="export-btn theme-btn" id="theme-toggle-btn" onclick="toggleDarkMode()">🌙 다크모드</button>
+                <button class="export-btn" onclick="exportBoard('png')">PNG 저장</button>
+                <button class="export-btn" onclick="exportBoard('jpeg')">JPG 저장</button>
+                <button class="export-btn pdf-btn" onclick="exportPDF()">PDF 내보내기</button>
             </div>
         </div>
 
@@ -461,6 +501,22 @@
         const ITEMS_PER_PAGE = 9;
         const STORAGE_KEY = 'storyboards_data_v3';
 
+        // 다크 모드 토글 및 저장 로직
+        function toggleDarkMode() {
+            const isDark = document.body.classList.toggle('dark-mode');
+            const btn = document.getElementById('theme-toggle-btn');
+            btn.innerText = isDark ? '☀️ 라이트모드' : '🌙 다크모드';
+            localStorage.setItem('theme_mode', isDark ? 'dark' : 'light');
+        }
+
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme_mode');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-mode');
+                document.getElementById('theme-toggle-btn').innerText = '☀️ 라이트모드';
+            }
+        }
+
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('sidebar-overlay');
@@ -483,6 +539,7 @@
         }
 
         window.onload = () => {
+            initTheme();
             const data = getStorageData();
             if (!data.order || data.order.length === 0) {
                 createNewBoard();
@@ -854,7 +911,79 @@
             setStorageData(data);
         }
 
-        /* onclone을 활용한 100% 동일 박스 스타일 가상 치환 다운로드 로직 */
+        /* 캡처용 공통 클론 변환 함수 */
+        function prepareCloneForCapture(clonedDoc) {
+            const clonedExportArea = clonedDoc.getElementById('export-area');
+            if (!clonedExportArea) return;
+
+            const isDark = document.body.classList.contains('dark-mode');
+            const bgBoxColor = isDark ? '#2d2d2d' : '#d0d0d0';
+            const textColor = isDark ? '#e0e0e0' : '#333';
+
+            const titleInput = clonedDoc.getElementById('board-title');
+            if (titleInput) {
+                const titleDiv = clonedDoc.createElement('div');
+                titleDiv.innerText = titleInput.value || 'TYPE NAME';
+                titleDiv.style.cssText = `
+                    font-size: 32px;
+                    font-weight: bold;
+                    text-align: center;
+                    width: 100%;
+                    margin-bottom: 10px;
+                    line-height: 1.4;
+                    color: ${textColor};
+                    padding: 6px 0;
+                    box-sizing: border-box;
+                `;
+                titleInput.parentNode.replaceChild(titleDiv, titleInput);
+            }
+
+            const subDetails = clonedDoc.getElementById('sub-details');
+            if (subDetails) {
+                const subDiv = clonedDoc.createElement('div');
+                subDiv.innerText = subDetails.value || subDetails.placeholder || '';
+                subDiv.style.cssText = `
+                    background-color: ${bgBoxColor};
+                    border-radius: 4px;
+                    padding: 10px;
+                    font-size: 13px;
+                    color: ${subDetails.value ? textColor : '#777'};
+                    width: 100%;
+                    max-width: 400px;
+                    min-height: 60px;
+                    word-break: break-all;
+                    white-space: pre-wrap;
+                    line-height: 1.4;
+                    box-sizing: border-box;
+                    text-align: left;
+                `;
+                subDetails.parentNode.replaceChild(subDiv, subDetails);
+            }
+
+            const descs = clonedExportArea.querySelectorAll('.card-description');
+            descs.forEach(desc => {
+                const descDiv = clonedDoc.createElement('div');
+                descDiv.innerText = desc.value || desc.placeholder || '';
+                descDiv.style.cssText = `
+                    background-color: ${bgBoxColor};
+                    border-radius: 4px;
+                    padding: 10px;
+                    font-size: 13px;
+                    color: ${desc.value ? textColor : '#777'};
+                    width: 100%;
+                    min-height: 50px;
+                    margin-top: 4px;
+                    word-break: break-all;
+                    white-space: pre-wrap;
+                    line-height: 1.4;
+                    box-sizing: border-box;
+                    text-align: left;
+                `;
+                desc.parentNode.replaceChild(descDiv, desc);
+            });
+        }
+
+        /* 이미지 (PNG/JPG) 내보내기 */
         function exportBoard(format) {
             const exportArea = document.getElementById('export-area');
             const mainContent = document.getElementById('main-content');
@@ -871,80 +1000,50 @@
                 scrollX: 0,
                 scrollY: 0,
                 windowWidth: 1200,
-                onclone: (clonedDoc) => {
-                    const clonedExportArea = clonedDoc.getElementById('export-area');
-                    if (!clonedExportArea) return;
-
-                    // 1. 타이틀 input -> div 변환
-                    const titleInput = clonedDoc.getElementById('board-title');
-                    if (titleInput) {
-                        const titleDiv = clonedDoc.createElement('div');
-                        titleDiv.innerText = titleInput.value || 'TYPE NAME';
-                        titleDiv.style.cssText = `
-                            font-size: 32px;
-                            font-weight: bold;
-                            text-align: center;
-                            width: 100%;
-                            margin-bottom: 10px;
-                            line-height: 1.4;
-                            color: #333;
-                            padding: 6px 0;
-                            box-sizing: border-box;
-                        `;
-                        titleInput.parentNode.replaceChild(titleDiv, titleInput);
-                    }
-
-                    // 2. sub-details textarea -> 회색 박스 div 변환
-                    const subDetails = clonedDoc.getElementById('sub-details');
-                    if (subDetails) {
-                        const subDiv = clonedDoc.createElement('div');
-                        subDiv.innerText = subDetails.value || subDetails.placeholder || '';
-                        subDiv.style.cssText = `
-                            background-color: #d0d0d0;
-                            border-radius: 4px;
-                            padding: 10px;
-                            font-size: 13px;
-                            color: ${subDetails.value ? '#333' : '#777'};
-                            width: 100%;
-                            max-width: 400px;
-                            min-height: 60px;
-                            word-break: break-all;
-                            white-space: pre-wrap;
-                            line-height: 1.4;
-                            box-sizing: border-box;
-                            text-align: left;
-                        `;
-                        subDetails.parentNode.replaceChild(subDiv, subDetails);
-                    }
-
-                    // 3. 카드 description textarea -> 회색 박스 div 변환
-                    const descs = clonedExportArea.querySelectorAll('.card-description');
-                    descs.forEach(desc => {
-                        const descDiv = clonedDoc.createElement('div');
-                        descDiv.innerText = desc.value || desc.placeholder || '';
-                        descDiv.style.cssText = `
-                            background-color: #d0d0d0;
-                            border-radius: 4px;
-                            padding: 10px;
-                            font-size: 13px;
-                            color: ${desc.value ? '#333' : '#777'};
-                            width: 100%;
-                            min-height: 50px;
-                            margin-top: 4px;
-                            word-break: break-all;
-                            white-space: pre-wrap;
-                            line-height: 1.4;
-                            box-sizing: border-box;
-                            text-align: left;
-                        `;
-                        desc.parentNode.replaceChild(descDiv, desc);
-                    });
-                }
+                onclone: (clonedDoc) => prepareCloneForCapture(clonedDoc)
             }).then(canvas => {
                 const link = document.createElement('a');
                 link.download = `${document.getElementById('board-title').value || 'storyboard'}_page${currentPage}.${format}`;
                 link.href = canvas.toDataURL(`image/${format === 'jpg' ? 'jpeg' : 'png'}`, 1.0);
                 link.click();
+
+                document.body.classList.remove('capturing');
+                mainContent.scrollTop = prevScroll;
+            }).catch(() => {
+                document.body.classList.remove('capturing');
+                mainContent.scrollTop = prevScroll;
+            });
+        }
+
+        /* PDF 문서 내보내기 */
+        function exportPDF() {
+            const exportArea = document.getElementById('export-area');
+            const mainContent = document.getElementById('main-content');
+
+            const prevScroll = mainContent.scrollTop;
+            mainContent.scrollTop = 0;
+
+            document.body.classList.add('capturing');
+
+            html2canvas(exportArea, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                scrollX: 0,
+                scrollY: 0,
+                windowWidth: 1200,
+                onclone: (clonedDoc) => prepareCloneForCapture(clonedDoc)
+            }).then(canvas => {
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                
+                const imgData = canvas.toDataURL('image/jpeg', 0.95);
+                const imgWidth = 210; // A4 가로 (mm)
+                const pageHeight = 297; // A4 세로 (mm)
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                
+                pdf.addImage(imgData, 'JPEG', 0, 10, imgWidth, imgHeight);
+                pdf.save(`${document.getElementById('board-title').value || 'storyboard'}_page${currentPage}.pdf`);
 
                 document.body.classList.remove('capturing');
                 mainContent.scrollTop = prevScroll;
