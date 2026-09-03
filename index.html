@@ -296,7 +296,6 @@
             color: var(--text-color);
         }
 
-        /* 텍스트 입력 영역 가독성 개선 스타일 */
         .auto-expand-textarea {
             background-color: var(--card-input-bg);
             border: none;
@@ -348,11 +347,25 @@
             margin: 8px 0 4px 0;
         }
 
-        .card-number {
+        /* 수정 가능한 번호/제목 입력창 스타일 */
+        .card-number-input {
             font-size: 15px;
             font-weight: 600;
             letter-spacing: -0.2px;
             color: var(--card-num-color);
+            border: none;
+            background: transparent;
+            outline: none;
+            width: 120px;
+            padding: 2px 4px;
+            border-radius: 4px;
+            font-family: inherit;
+            transition: background-color 0.2s;
+        }
+
+        .card-number-input:hover,
+        .card-number-input:focus {
+            background-color: var(--card-input-bg);
         }
 
         .delete-card-btn {
@@ -524,7 +537,7 @@
         let activeImageBox = null;
         let currentPage = 1;
         const ITEMS_PER_PAGE = 9;
-        const STORAGE_KEY = 'storyboards_data_v3';
+        const STORAGE_KEY = 'storyboards_data_v4';
         const FIXED_TIMESTAMP = "최종 사이트 수정: 2026년 9월 3일";
 
         function updateTimestampDisplay() {
@@ -588,9 +601,9 @@
                 title: 'TYPE NAME',
                 subDetails: '',
                 cards: [
-                    { img: '', desc: '', ratio: '16/9' },
-                    { img: '', desc: '', ratio: '16/9' },
-                    { img: '', desc: '', ratio: '16/9' }
+                    { img: '', desc: '', ratio: '16/9', num: '#1' },
+                    { img: '', desc: '', ratio: '16/9', num: '#2' },
+                    { img: '', desc: '', ratio: '16/9', num: '#3' }
                 ]
             };
             if (!data.order) data.order = [];
@@ -752,13 +765,13 @@
 
             pageCards.forEach((cardData, index) => {
                 const globalIndex = startIndex + index;
-                grid.appendChild(createCardElement(globalIndex + 1, cardData.img, cardData.desc, cardData.ratio, globalIndex));
+                grid.appendChild(createCardElement(globalIndex + 1, cardData.img, cardData.desc, cardData.ratio, globalIndex, cardData.num));
             });
 
             renderPagination(totalCards);
         }
 
-        function createCardElement(number, imgSrc, descText, ratio, globalIndex) {
+        function createCardElement(number, imgSrc, descText, ratio, globalIndex, customNum) {
             const card = document.createElement('div');
             card.className = 'card';
 
@@ -776,9 +789,12 @@
             const header = document.createElement('div');
             header.className = 'card-header';
 
-            const numEl = document.createElement('div');
-            numEl.className = 'card-number';
-            numEl.innerText = `#${number}`;
+            /* 자유롭게 수정 가능한 input 요소 */
+            const numEl = document.createElement('input');
+            numEl.type = 'text';
+            numEl.className = 'card-number-input';
+            numEl.value = customNum || `#${number}`;
+            numEl.oninput = () => saveCurrentBoardData();
 
             const delCardBtn = document.createElement('button');
             delCardBtn.className = 'delete-card-btn';
@@ -840,7 +856,8 @@
             const board = data.boards[currentBoardId];
 
             for (let i = 0; i < count; i++) {
-                board.cards.push({ img: '', desc: '', ratio: '16/9' });
+                const nextNum = `#${board.cards.length + 1}`;
+                board.cards.push({ img: '', desc: '', ratio: '16/9', num: nextNum });
             }
 
             setStorageData(data);
@@ -936,8 +953,10 @@
             gridCards.forEach((cardEl, idx) => {
                 const globalIndex = startIndex + idx;
                 const descVal = cardEl.querySelector('.card-description').value;
+                const numVal = cardEl.querySelector('.card-number-input').value;
                 if (board.cards[globalIndex]) {
                     board.cards[globalIndex].desc = descVal;
+                    board.cards[globalIndex].num = numVal;
                 }
             });
 
@@ -995,6 +1014,20 @@
                 `;
                 subDetails.parentNode.replaceChild(subDiv, subDetails);
             }
+
+            /* 이미지 변환 시 #1, #2 텍스트가 깨지지 않고 깔끔하게 렌더링되도록 변환 */
+            const numInputs = clonedExportArea.querySelectorAll('.card-number-input');
+            numInputs.forEach(input => {
+                const numDiv = clonedDoc.createElement('div');
+                numDiv.innerText = input.value || '';
+                numDiv.style.cssText = `
+                    font-size: 15px;
+                    font-weight: 600;
+                    letter-spacing: -0.2px;
+                    color: ${textColor};
+                `;
+                input.parentNode.replaceChild(numDiv, input);
+            });
 
             const descs = clonedExportArea.querySelectorAll('.card-description');
             descs.forEach(desc => {
