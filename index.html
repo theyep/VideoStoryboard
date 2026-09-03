@@ -2,7 +2,8 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 모바일 접속 시 PC 해상도 기준(1400px)으로 화면을 맞추도록 뷰포트 수정 -->
+    <meta name="viewport" content="width=1400, initial-scale=0.3, maximum-scale=1.0, user-scalable=yes">
     <title>스토리보드 생성기</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
@@ -19,6 +20,8 @@
             background-color: #f5f5f5;
             color: #333;
             overflow: hidden;
+            /* 모든 디바이스에서 최적화된 PC 레이아웃 최소 너비 고정 */
+            min-width: 1200px; 
         }
 
         /* 사이드바 */
@@ -31,7 +34,6 @@
             padding: 20px 10px;
             gap: 10px;
             flex-shrink: 0;
-            transition: all 0.3s;
         }
 
         #sidebar h2 {
@@ -129,6 +131,7 @@
             flex-direction: column;
             height: 100vh;
             overflow-y: auto;
+            overflow-x: auto;
         }
 
         .top-bar {
@@ -215,7 +218,7 @@
             min-height: 80px;
         }
 
-        /* 카드 그리드 */
+        /* 카드 그리드 - PC와 동일한 3열 구조 보장 */
         .board-grid {
             display: flex;
             flex-wrap: wrap;
@@ -228,7 +231,7 @@
             display: flex;
             flex-direction: column;
             width: calc(33.333% - 14px);
-            min-width: 200px;
+            min-width: 280px;
             background: transparent;
             position: relative;
             margin-bottom: 20px;
@@ -348,29 +351,6 @@
 
         input[type="file"] {
             display: none;
-        }
-
-        @media (max-width: 1024px) {
-            .card {
-                width: calc(50% - 10px);
-            }
-        }
-
-        @media (max-width: 650px) {
-            body {
-                flex-direction: column;
-            }
-            #sidebar {
-                width: 100%;
-                height: auto;
-                max-height: 180px;
-            }
-            .card {
-                width: 100%;
-            }
-            #storyboard-container {
-                padding: 15px;
-            }
         }
     </style>
 </head>
@@ -492,7 +472,6 @@
                 wrapper.draggable = true;
                 wrapper.dataset.id = id;
 
-                // 드래그 아이콘
                 const handle = document.createElement('span');
                 handle.className = 'drag-handle';
                 handle.innerHTML = '⋮⋮';
@@ -516,14 +495,12 @@
                 wrapper.appendChild(item);
                 wrapper.appendChild(delBtn);
 
-                // 드래그 앤 드롭 이벤트 등록
                 addDragEvents(wrapper);
 
                 listEl.appendChild(wrapper);
             });
         }
 
-        // 목록 순서 변경 드래그 앤 드롭
         let draggedItem = null;
 
         function addDragEvents(el) {
