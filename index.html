@@ -46,7 +46,7 @@
         body {
             display: flex;
             height: 100vh;
-            height: 100dvh; /* 모바일 브라우저 주소창 등으로 인한 비율 흔들림 방지 */
+            height: 100dvh;
             background-color: var(--bg-color);
             color: var(--text-color);
             overflow: hidden;
@@ -181,7 +181,7 @@
             height: 100dvh;
             overflow: auto; 
             width: 100%;
-            min-width: 0; /* flex 자식이 내용 때문에 부모보다 커져서 비율이 깨지는 것 방지 */
+            min-width: 0;
         }
 
         #main-content.panning {
@@ -247,7 +247,7 @@
             align-items: center;
             gap: 8px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.15);
-            z-index: 3100; /* 전체 스케치용 캔버스(2500)보다 항상 위에 있어야 확대 버튼이 눌림 */
+            z-index: 3100;
             font-size: 13px;
             pointer-events: auto;
         }
@@ -415,7 +415,6 @@
 
         .card-description { width: 100%; min-height: 52px; margin-top: 4px; }
         
-        /* 플로팅 UI로 변경되어 확대/축소 시 밀리지 않고 하단 중앙에 고정됨 */
         .controls-container {
             position: fixed;
             bottom: 25px;
@@ -446,8 +445,46 @@
             .board-grid { grid-template-columns: repeat(3, 1fr); }
         }
         
-        .capturing .delete-card-btn, .capturing .duplicate-card-btn, .capturing .card-drag-handle, .capturing .image-overlay-menu, .capturing .controls-container { display: none !important; }
-        .capturing .board-grid { grid-template-columns: repeat(3, 1fr) !important; }
+        .capturing .delete-card-btn, 
+        .capturing .duplicate-card-btn, 
+        .capturing .card-drag-handle, 
+        .capturing .image-overlay-menu, 
+        .capturing .controls-container { 
+            display: none !important; 
+        }
+        .capturing .board-grid { 
+            grid-template-columns: repeat(3, 1fr) !important; 
+        }
+        .capturing .card-number-input,
+        .capturing .title-input {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            resize: none !important;
+        }
+        /* Description / Sub Details boxes: keep their background box visible in
+           exports — only strip the border/resize handle, don't erase the fill. */
+        .capturing .auto-expand-textarea {
+            border: none !important;
+            box-shadow: none !important;
+            resize: none !important;
+        }
+
+        /* Export runs at a fixed, un-zoomed / un-scrolled state so nothing gets clipped.
+           This overlay is shown only while a capture is in progress. */
+        #export-lock-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.35);
+            z-index: 6000;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 15px;
+            font-weight: 600;
+        }
+        body.exporting #export-lock-overlay { display: flex; }
     </style>
 </head>
 <body>
@@ -486,7 +523,6 @@
         </div>
     </div>
 
-    <!-- 하단 고정 플로팅 UI로 이동 -->
     <div class="controls-container">
         <div class="pagination" id="pagination"></div>
         <button class="add-more-btn" onclick="addCards(3)">+ 3개 추가하기</button>
@@ -498,6 +534,8 @@
         <button onclick="zoomIn()">+</button>
         <button class="btn-reset" onclick="resetZoom()">초기화</button>
     </div>
+
+    <div id="export-lock-overlay">내보내기 준비 중...</div>
 
     <div id="notice-modal" class="modal-overlay" onclick="closeNoticeModal(event)">
         <div class="modal-content notice-modal-content" onclick="event.stopPropagation()">
@@ -570,8 +608,6 @@
         let isPanning = false;
         let startX, startY, scrollLeft, scrollTop;
 
-        // 공용 디바운스 유틸: 리사이즈/줌 시 레이아웃 계산이 과도하게 반복 실행되어
-        // 비율이 흔들리는 것을 방지하기 위해 사용
         function debounce(fn, delay) {
             let timer = null;
             return function (...args) {
@@ -580,9 +616,6 @@
             };
         }
 
-        // 패닝(화면 이동)을 막아야 하는 "진짜 인터랙션 요소"인지 판별.
-        // 이미지 박스(스토리보드 박스)와 입력칸(input/textarea/button 등), 모달/사이드바/플로팅 패널만 제외하고
-        // 카드 여백을 포함한 나머지 공간은 모두 홀드 이동이 가능하도록 함.
         function isInteractiveTarget(target) {
             if (!target || !target.closest) return false;
             if (target.closest('input, textarea, button, select, a, label')) return true;
@@ -596,8 +629,6 @@
             return false;
         }
 
-        // 상하좌우 모두 부드럽게 드래그하여 이동할 수 있도록 패닝 로직 수정
-        // (스토리보드 박스/입력칸을 제외한 모든 여백에서 홀드 이동 가능)
         mainContent.addEventListener('mousedown', (e) => {
             if (isGlobalModeActive || e.button !== 0) return;
             if (isInteractiveTarget(e.target)) return;
@@ -638,9 +669,16 @@
             }
         });
 
-        // 화면 중앙을 기준으로 확대/축소되도록 계산.
-        // export-area는 transform-origin: top left 이므로 좌상단 좌표는 스케일이 바뀌어도 그대로 유지된다는 점을 이용해
-        // "현재 화면 중앙에 보이는 지점"이 확대/축소 후에도 계속 화면 중앙에 오도록 스크롤 위치를 보정한다.
+        // Warn before the tab closes if there might be an in-progress export,
+        // so a slow export can't be interrupted and lose the download.
+        let exportInProgress = false;
+        window.addEventListener('beforeunload', (e) => {
+            if (exportInProgress) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+
         function setZoom(level) {
             const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, level));
             if (Math.abs(newZoom - currentZoom) < 0.001) return;
@@ -651,7 +689,6 @@
             const centerScreenY = containerRect.top + containerRect.height / 2;
 
             const exportRect = exportArea.getBoundingClientRect();
-            // 현재 화면 중앙점을 export-area의 스케일되지 않은(local) 좌표계로 환산
             const localX = (centerScreenX - exportRect.left) / currentZoom;
             const localY = (centerScreenY - exportRect.top) / currentZoom;
 
@@ -659,7 +696,6 @@
             exportArea.style.transform = `scale(${currentZoom})`;
             document.getElementById('zoom-level-text').innerText = Math.round(currentZoom * 100) + '%';
 
-            // transform-origin이 top left이므로 exportRect.left/top(좌상단)은 스케일 변경으로 움직이지 않음
             const newScreenX = exportRect.left + localX * currentZoom;
             const newScreenY = exportRect.top + localY * currentZoom;
 
@@ -675,7 +711,11 @@
         function toggleDarkMode() {
             const isDark = document.body.classList.toggle('dark-mode');
             document.getElementById('theme-toggle-btn').innerText = isDark ? '☀️ 라이트모드' : '🌙 다크모드';
-            localStorage.setItem('theme_mode', isDark ? 'dark' : 'light');
+            try {
+                localStorage.setItem('theme_mode', isDark ? 'dark' : 'light');
+            } catch (err) {
+                console.error('테마 저장 실패:', err);
+            }
         }
 
         function initTheme() {
@@ -698,11 +738,29 @@
             }
         }
 
+        // ---- Storage helpers -----------------------------------------------------
+        // Data safety: this site has no login, so localStorage is the ONLY copy of
+        // the user's work. If a write ever fails (quota exceeded, private-browsing
+        // restrictions, etc.) we must tell the user immediately instead of silently
+        // losing their edits.
         function getStorageData() {
-            return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { order: [], boards: {} };
+            try {
+                return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { order: [], boards: {} };
+            } catch (err) {
+                console.error('데이터 불러오기 실패:', err);
+                alert('⚠️ 저장된 데이터를 불러오는 중 문제가 발생했습니다. 브라우저 저장공간이 손상되었을 수 있습니다.');
+                return { order: [], boards: {} };
+            }
         }
         function setStorageData(data) {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+                return true;
+            } catch (err) {
+                console.error('저장 실패:', err);
+                alert('⚠️ 방금 작업한 내용이 저장되지 않았습니다!\n\n브라우저 저장공간(localStorage)이 가득 찼을 수 있습니다.\n용량이 큰 이미지를 정리하거나 사용하지 않는 보드를 삭제한 뒤 다시 시도해주세요.\n(비로그인 사이트이므로 저장이 안 되면 새로고침 시 내용이 사라집니다. 지금 바로 PNG/PDF로 내보내 백업해두는 것을 권장합니다.)');
+                return false;
+            }
         }
 
         window.onload = () => {
@@ -718,12 +776,9 @@
             window.addEventListener('resize', debounce(initGlobalCanvasSize, 150));
         };
 
-        // 콘텐츠 크기 계산을 매번 "실제 콘텐츠 기준"으로 새로 하여
-        // min-width/min-height 값이 계속 누적되어 커지면서 비율이 이상해지는 문제를 방지한다.
         function initGlobalCanvasSize() {
             const exportArea = document.getElementById('export-area');
 
-            // 이전에 설정된 min 값을 먼저 제거해 실제 콘텐츠 크기를 정확히 측정
             exportArea.style.minWidth = '0px';
             exportArea.style.minHeight = '0px';
 
@@ -938,6 +993,7 @@
 
         function deleteBoard(id, e) {
             e.stopPropagation();
+            if (!confirm('이 보드를 삭제하시겠습니까? 삭제한 내용은 복구할 수 없습니다.')) return;
             const data = getStorageData();
             delete data.boards[id];
             data.order = data.order.filter(bId => bId !== id);
@@ -948,9 +1004,7 @@
             loadBoard(currentBoardId);
         }
 
-        // 사이드바 순서 변경(드래그)을 위한 상태값
         let dragBoardId = null;
-        // 카드 순서 변경(드래그)을 위한 상태값
         let dragCardIndex = null;
 
         document.getElementById('board-grid').addEventListener('pointermove', (e) => {
@@ -1027,7 +1081,6 @@
                     currentBoardId = id; currentPage = 1; renderSidebar(); loadBoard(id);
                 };
 
-                // 드래그 핸들(⋮⋮)을 잡고 위/아래로 끌면 순서가 바뀜 (마우스/터치 공통)
                 wrapper.querySelector('.drag-handle').addEventListener('pointerdown', (e) => {
                     e.preventDefault();
                     dragBoardId = id;
@@ -1209,6 +1262,9 @@
                 setStorageData(data);
                 renderGrid();
             };
+            reader.onerror = () => {
+                alert('⚠️ 이미지를 불러오는 중 오류가 발생했습니다. 다시 시도해주세요.');
+            };
             reader.readAsDataURL(file);
             e.target.value = '';
         }
@@ -1342,6 +1398,7 @@
         }
 
         function deleteCard(index) {
+            if (!confirm('이 카드를 삭제하시겠습니까?')) return;
             const data = getStorageData();
             const board = data.boards[currentBoardId];
             board.cards.splice(index, 1);
@@ -1389,6 +1446,8 @@
                 div.style.textAlign = computedStyle.textAlign;
                 div.style.lineHeight = computedStyle.lineHeight;
                 div.style.padding = computedStyle.padding;
+                div.style.backgroundColor = computedStyle.backgroundColor;
+                div.style.borderRadius = computedStyle.borderRadius;
                 div.style.boxSizing = 'border-box';
                 div.style.width = el.offsetWidth + 'px';
                 div.style.height = el.offsetHeight + 'px';
@@ -1487,91 +1546,146 @@
             return cropped;
         }
 
-        function exportBoard(format) {
+        /*
+         * --- Export pipeline -------------------------------------------------
+         * Root cause of the "boxes get cut off" bug: exports were captured
+         * while the board could still be zoomed/panned. #main-content scrolls
+         * internally (overflow:auto) and #export-area can be transformed by
+         * setZoom(). html2canvas snapshots the DOM based on the CURRENT scroll
+         * position and transform, so if the user had panned/zoomed the board
+         * before exporting, only the portion that happened to be in that
+         * scrolled state rendered correctly and everything outside it (e.g. a
+         * card sitting past the current scroll offset) came out clipped.
+         *
+         * Fix: before every capture we force the view back to zoom 100% and
+         * scroll (0,0), let the layout settle for a couple of frames, capture
+         * the FULL un-scrolled/un-zoomed export area with explicit
+         * scrollX/scrollY/x/y/width/height so html2canvas has no ambiguity
+         * about what to render, and only THEN restore the user's original
+         * zoom/scroll so their editing view is untouched. The board data
+         * itself (localStorage) is never modified by this — only transient
+         * CSS/scroll state — so nothing the user typed or drew can be lost by
+         * exporting, even if the export itself fails.
+         */
+        function prepareAndCapture(onDone) {
+            if (exportInProgress) return; // avoid overlapping exports
+            exportInProgress = true;
+
             saveGlobalSketch();
+            saveCurrentBoardData();
+
             const exportArea = document.getElementById('export-area');
+
+            const prevZoom = currentZoom;
+            const prevScrollLeft = mainContent.scrollLeft;
+            const prevScrollTop = mainContent.scrollTop;
             const prevTransform = exportArea.style.transform;
-            
+
+            function finish() {
+                restoreInputsGuard();
+                document.body.classList.remove('capturing', 'exporting');
+                currentZoom = prevZoom;
+                exportArea.style.transform = prevTransform;
+                document.getElementById('zoom-level-text').innerText = Math.round(currentZoom * 100) + '%';
+                mainContent.scrollLeft = prevScrollLeft;
+                mainContent.scrollTop = prevScrollTop;
+                initGlobalCanvasSize();
+                loadGlobalSketch();
+                exportInProgress = false;
+            }
+
+            let replacements = [];
+            function restoreInputsGuard() {
+                if (replacements.length) restoreInputs(replacements);
+                replacements = [];
+            }
+
+            document.body.classList.add('exporting');
+            // Reset to a clean, fully un-zoomed / un-scrolled state so every
+            // card is fully laid out and nothing is clipped by pan or zoom.
             exportArea.style.transform = 'none';
+            currentZoom = 1.0;
+            mainContent.scrollLeft = 0;
+            mainContent.scrollTop = 0;
+
             document.body.classList.add('capturing');
-            const replacements = replaceInputsForCapture();
+            replacements = replaceInputsForCapture();
 
-            setTimeout(() => {
-                html2canvas(exportArea, { 
-                    scale: 2, 
-                    useCORS: true, 
-                    backgroundColor: document.body.classList.contains('dark-mode') ? '#121212' : '#f5f5f5',
-                    windowWidth: exportArea.scrollWidth,
-                    windowHeight: exportArea.scrollHeight
-                }).then(baseCanvas => {
-                    const finalCanvas = document.createElement('canvas');
-                    finalCanvas.width = baseCanvas.width;
-                    finalCanvas.height = baseCanvas.height;
-                    const ctx = finalCanvas.getContext('2d');
-                    ctx.drawImage(baseCanvas, 0, 0);
+            // Recompute the canvas/content size for the reset (100%, scroll 0) state.
+            initGlobalCanvasSize();
 
-                    if (globalCanvas.width > 0 && globalCanvas.height > 0) {
-                        ctx.drawImage(globalCanvas, 0, 0, finalCanvas.width, finalCanvas.height);
-                    }
+            // Wait for two animation frames + a short delay so layout/paint has
+            // fully settled before html2canvas reads element sizes.
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                setTimeout(() => {
+                    const targetWidth = exportArea.scrollWidth;
+                    const targetHeight = exportArea.scrollHeight;
 
-                    const isDark = document.body.classList.contains('dark-mode');
-                    const croppedCanvas = autoCropCanvas(finalCanvas, isDark);
+                    html2canvas(exportArea, {
+                        scale: 2,
+                        useCORS: true,
+                        backgroundColor: document.body.classList.contains('dark-mode') ? '#121212' : '#f5f5f5',
+                        windowWidth: targetWidth,
+                        windowHeight: targetHeight,
+                        width: targetWidth,
+                        height: targetHeight,
+                        x: 0,
+                        y: 0,
+                        scrollX: 0,
+                        scrollY: 0
+                    }).then(baseCanvas => {
+                        const finalCanvas = document.createElement('canvas');
+                        finalCanvas.width = baseCanvas.width;
+                        finalCanvas.height = baseCanvas.height;
+                        const ctx = finalCanvas.getContext('2d');
+                        ctx.drawImage(baseCanvas, 0, 0);
 
-                    const link = document.createElement('a');
-                    link.download = `${document.getElementById('board-title').value || 'storyboard'}.${format}`;
-                    link.href = croppedCanvas.toDataURL(`image/${format === 'jpg' ? 'jpeg' : 'png'}`, 1.0);
-                    link.click();
-                    
-                    restoreInputs(replacements);
-                    document.body.classList.remove('capturing');
-                    exportArea.style.transform = prevTransform;
-                });
-            }, 150);
+                        if (globalCanvas.width > 0 && globalCanvas.height > 0) {
+                            ctx.drawImage(globalCanvas, 0, 0, finalCanvas.width, finalCanvas.height);
+                        }
+
+                        try {
+                            onDone(finalCanvas);
+                        } catch (err) {
+                            console.error('내보내기 처리 중 오류:', err);
+                            alert('⚠️ 내보내기 중 오류가 발생했습니다. 작업 내용은 그대로 남아있으니 다시 시도해주세요.');
+                        } finally {
+                            finish();
+                        }
+                    }).catch(err => {
+                        console.error('캡처 중 오류:', err);
+                        alert('⚠️ 이미지를 만드는 중 오류가 발생했습니다. 작업 내용은 안전하게 남아있으니 다시 시도해주세요.');
+                        finish();
+                    });
+                }, 150);
+            }));
+        }
+
+        function exportBoard(format) {
+            prepareAndCapture((finalCanvas) => {
+                const isDark = document.body.classList.contains('dark-mode');
+                const croppedCanvas = autoCropCanvas(finalCanvas, isDark);
+
+                const link = document.createElement('a');
+                link.download = `${document.getElementById('board-title').value || 'storyboard'}.${format}`;
+                link.href = croppedCanvas.toDataURL(`image/${format === 'jpg' ? 'jpeg' : 'png'}`, 1.0);
+                link.click();
+            });
         }
 
         function exportPDF() {
-            saveGlobalSketch();
-            const exportArea = document.getElementById('export-area');
-            const prevTransform = exportArea.style.transform;
-            
-            exportArea.style.transform = 'none';
-            document.body.classList.add('capturing');
-            const replacements = replaceInputsForCapture();
+            prepareAndCapture((finalCanvas) => {
+                const isDark = document.body.classList.contains('dark-mode');
+                const croppedCanvas = autoCropCanvas(finalCanvas, isDark);
 
-            setTimeout(() => {
-                html2canvas(exportArea, { 
-                    scale: 2, 
-                    useCORS: true, 
-                    backgroundColor: document.body.classList.contains('dark-mode') ? '#121212' : '#f5f5f5',
-                    windowWidth: exportArea.scrollWidth,
-                    windowHeight: exportArea.scrollHeight
-                }).then(baseCanvas => {
-                    const finalCanvas = document.createElement('canvas');
-                    finalCanvas.width = baseCanvas.width;
-                    finalCanvas.height = baseCanvas.height;
-                    const ctx = finalCanvas.getContext('2d');
-                    ctx.drawImage(baseCanvas, 0, 0);
-                    
-                    if (globalCanvas.width > 0 && globalCanvas.height > 0) {
-                        ctx.drawImage(globalCanvas, 0, 0, finalCanvas.width, finalCanvas.height);
-                    }
-
-                    const isDark = document.body.classList.contains('dark-mode');
-                    const croppedCanvas = autoCropCanvas(finalCanvas, isDark);
-
-                    const { jsPDF } = window.jspdf;
-                    const pdf = new jsPDF('p', 'mm', 'a4');
-                    const imgData = croppedCanvas.toDataURL('image/jpeg', 0.95);
-                    const imgWidth = 210;
-                    const imgHeight = (croppedCanvas.height * imgWidth) / croppedCanvas.width;
-                    pdf.addImage(imgData, 'JPEG', 0, 10, imgWidth, imgHeight);
-                    pdf.save(`${document.getElementById('board-title').value || 'storyboard'}.pdf`);
-                    
-                    restoreInputs(replacements);
-                    document.body.classList.remove('capturing');
-                    exportArea.style.transform = prevTransform;
-                });
-            }, 150);
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const imgData = croppedCanvas.toDataURL('image/jpeg', 0.95);
+                const imgWidth = 210;
+                const imgHeight = (croppedCanvas.height * imgWidth) / croppedCanvas.width;
+                pdf.addImage(imgData, 'JPEG', 0, 10, imgWidth, imgHeight);
+                pdf.save(`${document.getElementById('board-title').value || 'storyboard'}.pdf`);
+            });
         }
     </script>
 </body>
