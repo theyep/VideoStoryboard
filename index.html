@@ -402,7 +402,7 @@
             width: 100%; background-color: #666; display: flex; justify-content: center; align-items: center;
             position: relative; overflow: hidden; aspect-ratio: 16 / 9; border-radius: 4px;
         }
-        .image-box img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .image-box img { width: 100%; height: 100%; object-fit: contain; background-color: #000; display: block; }
 
         .image-overlay-menu {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -455,6 +455,7 @@
         .capturing .board-grid { 
             grid-template-columns: repeat(3, 1fr) !important; 
         }
+        .capturing .auto-expand-textarea,
         .capturing .card-number-input,
         .capturing .title-input {
             background: transparent !important;
@@ -462,29 +463,6 @@
             box-shadow: none !important;
             resize: none !important;
         }
-        /* Description / Sub Details boxes: keep their background box visible in
-           exports — only strip the border/resize handle, don't erase the fill. */
-        .capturing .auto-expand-textarea {
-            border: none !important;
-            box-shadow: none !important;
-            resize: none !important;
-        }
-
-        /* Export runs at a fixed, un-zoomed / un-scrolled state so nothing gets clipped.
-           This overlay is shown only while a capture is in progress. */
-        #export-lock-overlay {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0,0,0,0.35);
-            z-index: 6000;
-            align-items: center;
-            justify-content: center;
-            color: #fff;
-            font-size: 15px;
-            font-weight: 600;
-        }
-        body.exporting #export-lock-overlay { display: flex; }
     </style>
 </head>
 <body>
@@ -534,8 +512,6 @@
         <button onclick="zoomIn()">+</button>
         <button class="btn-reset" onclick="resetZoom()">초기화</button>
     </div>
-
-    <div id="export-lock-overlay">내보내기 준비 중...</div>
 
     <div id="notice-modal" class="modal-overlay" onclick="closeNoticeModal(event)">
         <div class="modal-content notice-modal-content" onclick="event.stopPropagation()">
@@ -669,16 +645,6 @@
             }
         });
 
-        // Warn before the tab closes if there might be an in-progress export,
-        // so a slow export can't be interrupted and lose the download.
-        let exportInProgress = false;
-        window.addEventListener('beforeunload', (e) => {
-            if (exportInProgress) {
-                e.preventDefault();
-                e.returnValue = '';
-            }
-        });
-
         function setZoom(level) {
             const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, level));
             if (Math.abs(newZoom - currentZoom) < 0.001) return;
@@ -711,11 +677,7 @@
         function toggleDarkMode() {
             const isDark = document.body.classList.toggle('dark-mode');
             document.getElementById('theme-toggle-btn').innerText = isDark ? '☀️ 라이트모드' : '🌙 다크모드';
-            try {
-                localStorage.setItem('theme_mode', isDark ? 'dark' : 'light');
-            } catch (err) {
-                console.error('테마 저장 실패:', err);
-            }
+            localStorage.setItem('theme_mode', isDark ? 'dark' : 'light');
         }
 
         function initTheme() {
@@ -738,29 +700,11 @@
             }
         }
 
-        // ---- Storage helpers -----------------------------------------------------
-        // Data safety: this site has no login, so localStorage is the ONLY copy of
-        // the user's work. If a write ever fails (quota exceeded, private-browsing
-        // restrictions, etc.) we must tell the user immediately instead of silently
-        // losing their edits.
         function getStorageData() {
-            try {
-                return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { order: [], boards: {} };
-            } catch (err) {
-                console.error('데이터 불러오기 실패:', err);
-                alert('⚠️ 저장된 데이터를 불러오는 중 문제가 발생했습니다. 브라우저 저장공간이 손상되었을 수 있습니다.');
-                return { order: [], boards: {} };
-            }
+            return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { order: [], boards: {} };
         }
         function setStorageData(data) {
-            try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-                return true;
-            } catch (err) {
-                console.error('저장 실패:', err);
-                alert('⚠️ 방금 작업한 내용이 저장되지 않았습니다!\n\n브라우저 저장공간(localStorage)이 가득 찼을 수 있습니다.\n용량이 큰 이미지를 정리하거나 사용하지 않는 보드를 삭제한 뒤 다시 시도해주세요.\n(비로그인 사이트이므로 저장이 안 되면 새로고침 시 내용이 사라집니다. 지금 바로 PNG/PDF로 내보내 백업해두는 것을 권장합니다.)');
-                return false;
-            }
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
         }
 
         window.onload = () => {
@@ -993,7 +937,6 @@
 
         function deleteBoard(id, e) {
             e.stopPropagation();
-            if (!confirm('이 보드를 삭제하시겠습니까? 삭제한 내용은 복구할 수 없습니다.')) return;
             const data = getStorageData();
             delete data.boards[id];
             data.order = data.order.filter(bId => bId !== id);
@@ -1257,13 +1200,16 @@
             if (!file || activeCardGlobalIndex === null) return;
             const reader = new FileReader();
             reader.onload = (event) => {
-                const data = getStorageData();
-                data.boards[currentBoardId].cards[activeCardGlobalIndex].img = event.target.result;
-                setStorageData(data);
-                renderGrid();
-            };
-            reader.onerror = () => {
-                alert('⚠️ 이미지를 불러오는 중 오류가 발생했습니다. 다시 시도해주세요.');
+                const imgObj = new Image();
+                imgObj.onload = () => {
+                    const ratioVal = `${imgObj.width} / ${imgObj.height}`;
+                    const data = getStorageData();
+                    data.boards[currentBoardId].cards[activeCardGlobalIndex].img = event.target.result;
+                    data.boards[currentBoardId].cards[activeCardGlobalIndex].ratio = ratioVal;
+                    setStorageData(data);
+                    renderGrid();
+                };
+                imgObj.src = event.target.result;
             };
             reader.readAsDataURL(file);
             e.target.value = '';
@@ -1378,10 +1324,16 @@
 
         function saveDrawing() {
             if (targetCardIndexForDraw !== null) {
-                const data = getStorageData();
-                data.boards[currentBoardId].cards[targetCardIndexForDraw].img = cardCanvas.toDataURL('image/png');
-                setStorageData(data);
-                renderGrid();
+                const imgObj = new Image();
+                imgObj.onload = () => {
+                    const ratioVal = `${imgObj.width} / ${imgObj.height}`;
+                    const data = getStorageData();
+                    data.boards[currentBoardId].cards[targetCardIndexForDraw].img = cardCanvas.toDataURL('image/png');
+                    data.boards[currentBoardId].cards[targetCardIndexForDraw].ratio = ratioVal;
+                    setStorageData(data);
+                    renderGrid();
+                };
+                imgObj.src = cardCanvas.toDataURL('image/png');
             }
             closeDrawModal();
         }
@@ -1398,7 +1350,6 @@
         }
 
         function deleteCard(index) {
-            if (!confirm('이 카드를 삭제하시겠습니까?')) return;
             const data = getStorageData();
             const board = data.boards[currentBoardId];
             board.cards.splice(index, 1);
@@ -1446,8 +1397,6 @@
                 div.style.textAlign = computedStyle.textAlign;
                 div.style.lineHeight = computedStyle.lineHeight;
                 div.style.padding = computedStyle.padding;
-                div.style.backgroundColor = computedStyle.backgroundColor;
-                div.style.borderRadius = computedStyle.borderRadius;
                 div.style.boxSizing = 'border-box';
                 div.style.width = el.offsetWidth + 'px';
                 div.style.height = el.offsetHeight + 'px';
@@ -1546,146 +1495,91 @@
             return cropped;
         }
 
-        /*
-         * --- Export pipeline -------------------------------------------------
-         * Root cause of the "boxes get cut off" bug: exports were captured
-         * while the board could still be zoomed/panned. #main-content scrolls
-         * internally (overflow:auto) and #export-area can be transformed by
-         * setZoom(). html2canvas snapshots the DOM based on the CURRENT scroll
-         * position and transform, so if the user had panned/zoomed the board
-         * before exporting, only the portion that happened to be in that
-         * scrolled state rendered correctly and everything outside it (e.g. a
-         * card sitting past the current scroll offset) came out clipped.
-         *
-         * Fix: before every capture we force the view back to zoom 100% and
-         * scroll (0,0), let the layout settle for a couple of frames, capture
-         * the FULL un-scrolled/un-zoomed export area with explicit
-         * scrollX/scrollY/x/y/width/height so html2canvas has no ambiguity
-         * about what to render, and only THEN restore the user's original
-         * zoom/scroll so their editing view is untouched. The board data
-         * itself (localStorage) is never modified by this — only transient
-         * CSS/scroll state — so nothing the user typed or drew can be lost by
-         * exporting, even if the export itself fails.
-         */
-        function prepareAndCapture(onDone) {
-            if (exportInProgress) return; // avoid overlapping exports
-            exportInProgress = true;
-
-            saveGlobalSketch();
-            saveCurrentBoardData();
-
-            const exportArea = document.getElementById('export-area');
-
-            const prevZoom = currentZoom;
-            const prevScrollLeft = mainContent.scrollLeft;
-            const prevScrollTop = mainContent.scrollTop;
-            const prevTransform = exportArea.style.transform;
-
-            function finish() {
-                restoreInputsGuard();
-                document.body.classList.remove('capturing', 'exporting');
-                currentZoom = prevZoom;
-                exportArea.style.transform = prevTransform;
-                document.getElementById('zoom-level-text').innerText = Math.round(currentZoom * 100) + '%';
-                mainContent.scrollLeft = prevScrollLeft;
-                mainContent.scrollTop = prevScrollTop;
-                initGlobalCanvasSize();
-                loadGlobalSketch();
-                exportInProgress = false;
-            }
-
-            let replacements = [];
-            function restoreInputsGuard() {
-                if (replacements.length) restoreInputs(replacements);
-                replacements = [];
-            }
-
-            document.body.classList.add('exporting');
-            // Reset to a clean, fully un-zoomed / un-scrolled state so every
-            // card is fully laid out and nothing is clipped by pan or zoom.
-            exportArea.style.transform = 'none';
-            currentZoom = 1.0;
-            mainContent.scrollLeft = 0;
-            mainContent.scrollTop = 0;
-
-            document.body.classList.add('capturing');
-            replacements = replaceInputsForCapture();
-
-            // Recompute the canvas/content size for the reset (100%, scroll 0) state.
-            initGlobalCanvasSize();
-
-            // Wait for two animation frames + a short delay so layout/paint has
-            // fully settled before html2canvas reads element sizes.
-            requestAnimationFrame(() => requestAnimationFrame(() => {
-                setTimeout(() => {
-                    const targetWidth = exportArea.scrollWidth;
-                    const targetHeight = exportArea.scrollHeight;
-
-                    html2canvas(exportArea, {
-                        scale: 2,
-                        useCORS: true,
-                        backgroundColor: document.body.classList.contains('dark-mode') ? '#121212' : '#f5f5f5',
-                        windowWidth: targetWidth,
-                        windowHeight: targetHeight,
-                        width: targetWidth,
-                        height: targetHeight,
-                        x: 0,
-                        y: 0,
-                        scrollX: 0,
-                        scrollY: 0
-                    }).then(baseCanvas => {
-                        const finalCanvas = document.createElement('canvas');
-                        finalCanvas.width = baseCanvas.width;
-                        finalCanvas.height = baseCanvas.height;
-                        const ctx = finalCanvas.getContext('2d');
-                        ctx.drawImage(baseCanvas, 0, 0);
-
-                        if (globalCanvas.width > 0 && globalCanvas.height > 0) {
-                            ctx.drawImage(globalCanvas, 0, 0, finalCanvas.width, finalCanvas.height);
-                        }
-
-                        try {
-                            onDone(finalCanvas);
-                        } catch (err) {
-                            console.error('내보내기 처리 중 오류:', err);
-                            alert('⚠️ 내보내기 중 오류가 발생했습니다. 작업 내용은 그대로 남아있으니 다시 시도해주세요.');
-                        } finally {
-                            finish();
-                        }
-                    }).catch(err => {
-                        console.error('캡처 중 오류:', err);
-                        alert('⚠️ 이미지를 만드는 중 오류가 발생했습니다. 작업 내용은 안전하게 남아있으니 다시 시도해주세요.');
-                        finish();
-                    });
-                }, 150);
-            }));
-        }
-
         function exportBoard(format) {
-            prepareAndCapture((finalCanvas) => {
-                const isDark = document.body.classList.contains('dark-mode');
-                const croppedCanvas = autoCropCanvas(finalCanvas, isDark);
+            saveGlobalSketch();
+            const exportArea = document.getElementById('export-area');
+            const prevTransform = exportArea.style.transform;
+            
+            exportArea.style.transform = 'none';
+            document.body.classList.add('capturing');
+            const replacements = replaceInputsForCapture();
 
-                const link = document.createElement('a');
-                link.download = `${document.getElementById('board-title').value || 'storyboard'}.${format}`;
-                link.href = croppedCanvas.toDataURL(`image/${format === 'jpg' ? 'jpeg' : 'png'}`, 1.0);
-                link.click();
-            });
+            setTimeout(() => {
+                html2canvas(exportArea, { 
+                    scale: 2, 
+                    useCORS: true, 
+                    backgroundColor: document.body.classList.contains('dark-mode') ? '#121212' : '#f5f5f5',
+                    windowWidth: exportArea.scrollWidth,
+                    windowHeight: exportArea.scrollHeight
+                }).then(baseCanvas => {
+                    const finalCanvas = document.createElement('canvas');
+                    finalCanvas.width = baseCanvas.width;
+                    finalCanvas.height = baseCanvas.height;
+                    const ctx = finalCanvas.getContext('2d');
+                    ctx.drawImage(baseCanvas, 0, 0);
+
+                    if (globalCanvas.width > 0 && globalCanvas.height > 0) {
+                        ctx.drawImage(globalCanvas, 0, 0, finalCanvas.width, finalCanvas.height);
+                    }
+
+                    const isDark = document.body.classList.contains('dark-mode');
+                    const croppedCanvas = autoCropCanvas(finalCanvas, isDark);
+
+                    const link = document.createElement('a');
+                    link.download = `${document.getElementById('board-title').value || 'storyboard'}.${format}`;
+                    link.href = croppedCanvas.toDataURL(`image/${format === 'jpg' ? 'jpeg' : 'png'}`, 1.0);
+                    link.click();
+                    
+                    restoreInputs(replacements);
+                    document.body.classList.remove('capturing');
+                    exportArea.style.transform = prevTransform;
+                });
+            }, 150);
         }
 
         function exportPDF() {
-            prepareAndCapture((finalCanvas) => {
-                const isDark = document.body.classList.contains('dark-mode');
-                const croppedCanvas = autoCropCanvas(finalCanvas, isDark);
+            saveGlobalSketch();
+            const exportArea = document.getElementById('export-area');
+            const prevTransform = exportArea.style.transform;
+            
+            exportArea.style.transform = 'none';
+            document.body.classList.add('capturing');
+            const replacements = replaceInputsForCapture();
 
-                const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF('p', 'mm', 'a4');
-                const imgData = croppedCanvas.toDataURL('image/jpeg', 0.95);
-                const imgWidth = 210;
-                const imgHeight = (croppedCanvas.height * imgWidth) / croppedCanvas.width;
-                pdf.addImage(imgData, 'JPEG', 0, 10, imgWidth, imgHeight);
-                pdf.save(`${document.getElementById('board-title').value || 'storyboard'}.pdf`);
-            });
+            setTimeout(() => {
+                html2canvas(exportArea, { 
+                    scale: 2, 
+                    useCORS: true, 
+                    backgroundColor: document.body.classList.contains('dark-mode') ? '#121212' : '#f5f5f5',
+                    windowWidth: exportArea.scrollWidth,
+                    windowHeight: exportArea.scrollHeight
+                }).then(baseCanvas => {
+                    const finalCanvas = document.createElement('canvas');
+                    finalCanvas.width = baseCanvas.width;
+                    finalCanvas.height = baseCanvas.height;
+                    const ctx = finalCanvas.getContext('2d');
+                    ctx.drawImage(baseCanvas, 0, 0);
+                    
+                    if (globalCanvas.width > 0 && globalCanvas.height > 0) {
+                        ctx.drawImage(globalCanvas, 0, 0, finalCanvas.width, finalCanvas.height);
+                    }
+
+                    const isDark = document.body.classList.contains('dark-mode');
+                    const croppedCanvas = autoCropCanvas(finalCanvas, isDark);
+
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF('p', 'mm', 'a4');
+                    const imgData = croppedCanvas.toDataURL('image/jpeg', 0.95);
+                    const imgWidth = 210;
+                    const imgHeight = (croppedCanvas.height * imgWidth) / croppedCanvas.width;
+                    pdf.addImage(imgData, 'JPEG', 0, 10, imgWidth, imgHeight);
+                    pdf.save(`${document.getElementById('board-title').value || 'storyboard'}.pdf`);
+                    
+                    restoreInputs(replacements);
+                    document.body.classList.remove('capturing');
+                    exportArea.style.transform = prevTransform;
+                });
+            }, 150);
         }
     </script>
 </body>
