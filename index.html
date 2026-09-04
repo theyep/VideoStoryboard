@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>스토리보드 생성기</title>
-    <!-- 가독성이 뛰어난 Pretendard 폰트 불러오기 -->
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -13,7 +12,7 @@
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
         }
 
         :root {
@@ -22,8 +21,7 @@
             --sidebar-bg: #1e1e1e;
             --topbar-bg: #fff;
             --topbar-border: #ddd;
-            --container-bg: #eaeaea;
-            --card-input-bg: #d0d0d0;
+            --card-input-bg: #e2e2e2;
             --card-num-color: #333;
             --btn-bg: #007acc;
             --btn-hover: #005999;
@@ -36,20 +34,27 @@
             --sidebar-bg: #181818;
             --topbar-bg: #1e1e1e;
             --topbar-border: #333;
-            --container-bg: #1e1e1e;
             --card-input-bg: #2d2d2d;
             --card-num-color: #e0e0e0;
             --item-bg: #2c2c2c;
         }
 
+        html, body {
+            height: 100%;
+        }
+
         body {
             display: flex;
             height: 100vh;
+            height: 100dvh; /* 모바일 브라우저 주소창 등으로 인한 비율 흔들림 방지 */
             background-color: var(--bg-color);
             color: var(--text-color);
             overflow: hidden;
             position: relative;
-            transition: background-color 0.3s, color 0.3s;
+        }
+
+        body.global-drawing .image-overlay-menu, body.global-drawing .controls-container {
+            display: none !important;
         }
 
         .toggle-btn {
@@ -68,10 +73,8 @@
         #sidebar-overlay {
             display: none;
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
             background: rgba(0, 0, 0, 0.5);
             z-index: 998;
         }
@@ -86,23 +89,13 @@
             gap: 10px;
             flex-shrink: 0;
             position: fixed;
-            top: 0;
-            bottom: 0;
-            left: -260px;
+            top: 0; bottom: 0; left: -260px;
             z-index: 999;
             transition: left 0.3s ease;
         }
 
-        #sidebar.open {
-            left: 0;
-        }
-
-        #sidebar h2 {
-            font-size: 16px;
-            padding: 0 10px;
-            margin-bottom: 10px;
-            color: #aaa;
-        }
+        #sidebar.open { left: 0; }
+        #sidebar h2 { font-size: 16px; padding: 0 10px; margin-bottom: 10px; color: #aaa; }
 
         .board-list {
             display: flex;
@@ -117,30 +110,25 @@
             align-items: center;
             background-color: var(--item-bg);
             border-radius: 6px;
-            padding-right: 8px;
-            cursor: grab;
-            transition: transform 0.2s, opacity 0.2s;
+            padding-right: 4px;
+            transition: outline 0.1s ease, opacity 0.1s ease;
+            outline: 2px dashed transparent;
+            outline-offset: -2px;
         }
 
-        .board-item-wrapper:active {
-            cursor: grabbing;
-        }
-
-        .board-item-wrapper.dragging {
-            opacity: 0.5;
-            background-color: #444;
-        }
-
-        .board-item-wrapper.active {
-            background-color: var(--btn-bg);
-        }
+        .board-item-wrapper.active { background-color: var(--btn-bg); }
+        .board-item-wrapper.dragging { opacity: 0.4; }
+        .board-item-wrapper.drag-over { outline-color: #8ab4f8; }
 
         .drag-handle {
-            padding: 0 8px;
+            padding: 0 6px;
             color: #888;
             font-size: 14px;
+            cursor: grab;
+            touch-action: none;
             user-select: none;
         }
+        .drag-handle:active { cursor: grabbing; }
 
         .board-item {
             padding: 10px 4px;
@@ -151,8 +139,18 @@
             text-overflow: ellipsis;
             font-size: 14px;
             color: #fff;
-            user-select: none;
         }
+
+        .duplicate-board-btn {
+            background: none;
+            border: none;
+            color: #8ab4f8;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 4px 6px;
+            line-height: 1;
+        }
+        .duplicate-board-btn:hover { color: #b3d1ff; }
 
         .delete-board-btn {
             background: none;
@@ -161,12 +159,7 @@
             cursor: pointer;
             font-weight: bold;
             font-size: 14px;
-            padding: 4px 8px;
-            border-radius: 4px;
-        }
-
-        .delete-board-btn:hover {
-            background-color: rgba(255, 0, 0, 0.2);
+            padding: 4px 6px;
         }
 
         .add-btn {
@@ -178,11 +171,6 @@
             cursor: pointer;
             font-size: 18px;
             font-weight: bold;
-            transition: 0.2s;
-        }
-
-        .add-btn:hover {
-            background-color: #444;
         }
 
         #main-content {
@@ -190,9 +178,15 @@
             display: flex;
             flex-direction: column;
             height: 100vh;
-            overflow-y: auto;
+            height: 100dvh;
+            overflow: auto; 
             width: 100%;
-            background-color: var(--bg-color);
+            min-width: 0; /* flex 자식이 내용 때문에 부모보다 커져서 비율이 깨지는 것 방지 */
+        }
+
+        #main-content.panning {
+            cursor: grabbing !important;
+            user-select: none;
         }
 
         .top-bar {
@@ -204,7 +198,7 @@
             align-items: center;
             position: sticky;
             top: 0;
-            z-index: 100;
+            z-index: 2600;
             gap: 15px;
         }
 
@@ -212,6 +206,7 @@
             display: flex;
             gap: 8px;
             align-items: center;
+            flex-wrap: wrap;
         }
 
         .export-btn {
@@ -225,34 +220,13 @@
             font-size: 13px;
         }
 
-        .export-btn:hover {
-            background-color: var(--btn-hover);
-        }
-
-        .theme-btn {
-            background-color: #4A5568;
-        }
-
-        .theme-btn:hover {
-            background-color: #2D3748;
-        }
-
-        .pdf-btn {
-            background-color: #e53e3e;
-        }
-
-        .pdf-btn:hover {
-            background-color: #c53030;
-        }
-
-        .notice-btn {
-            background-color: #ed8936;
-        }
-
-        .notice-btn:hover {
-            background-color: #dd6b20;
-        }
-
+        .export-btn:hover { background-color: var(--btn-hover); }
+        .theme-btn { background-color: #4A5568; }
+        .pdf-btn { background-color: #e53e3e; }
+        .notice-btn { background-color: #ed8936; }
+        .global-draw-btn { background-color: #319795; }
+        .global-draw-btn.active-mode { background-color: #dd6b20; }
+        
         .timestamp-display {
             font-size: 12px;
             color: var(--text-color);
@@ -261,114 +235,119 @@
             margin-left: auto;
         }
 
-        /* 유의사항 모달 팝업 스타일 */
+        #floating-zoom-panel {
+            position: fixed;
+            top: 80px;
+            right: 30px;
+            background-color: var(--topbar-bg);
+            border: 1px solid var(--topbar-border);
+            padding: 8px 12px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            z-index: 3100; /* 전체 스케치용 캔버스(2500)보다 항상 위에 있어야 확대 버튼이 눌림 */
+            font-size: 13px;
+            pointer-events: auto;
+        }
+        .capturing #floating-zoom-panel { display: none !important; }
+        #floating-zoom-panel span { min-width: 45px; text-align: center; font-weight: bold; color: var(--text-color); }
+        #floating-zoom-panel button { padding: 4px 10px; background-color: var(--btn-bg); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; pointer-events: auto; }
+        #floating-zoom-panel button:hover { background-color: var(--btn-hover); }
+        #floating-zoom-panel .btn-reset { background-color: #555; }
+        #floating-zoom-panel .btn-reset:hover { background-color: #333; }
+
         .modal-overlay {
             display: none;
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
             background: rgba(0, 0, 0, 0.6);
-            z-index: 2000;
+            z-index: 5000;
             justify-content: center;
             align-items: center;
         }
+        .modal-overlay.show { display: flex; }
 
-        .modal-overlay.show {
-            display: flex;
-        }
-
-        .modal-content {
+        .modal-content, .draw-modal-content {
             background-color: var(--topbar-bg);
             color: var(--text-color);
             padding: 24px;
             border-radius: 12px;
-            max-width: 520px;
-            width: 90%;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-            position: relative;
+            max-width: 520px; width: 90%;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            display: flex; flex-direction: column; gap: 15px;
         }
 
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
+        .draw-modal-content { width: 720px; max-width: 95%; }
+        .draw-tools { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; font-size: 13px; }
+        
+        #drawing-canvas {
+            border: 2px solid var(--topbar-border);
+            background: #ffffff;
+            cursor: crosshair;
+            width: 100%; height: 380px;
+            touch-action: none;
+            border-radius: 4px;
+        }
+        .draw-footer { display: flex; justify-content: flex-end; gap: 10px; }
+
+        .notice-modal-content h3 { font-size: 18px; margin-bottom: 15px; }
+        .notice-modal-content p { font-size: 14px; line-height: 1.6; margin-bottom: 10px; }
+        .notice-modal-content ul { padding-left: 20px; font-size: 14px; line-height: 1.6; margin-bottom: 15px; }
+        
+        #global-draw-toolbar {
+            display: none;
+            position: fixed;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(30, 30, 30, 0.95);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+            z-index: 4000;
             align-items: center;
-            margin-bottom: 16px;
-            border-bottom: 1px solid var(--topbar-border);
-            padding-bottom: 12px;
-        }
-
-        .modal-header h3 {
-            font-size: 18px;
-            font-weight: 700;
-            color: var(--text-color);
-        }
-
-        .modal-close-btn {
-            background: none;
-            border: none;
-            font-size: 20px;
-            cursor: pointer;
-            color: var(--text-color);
-            padding: 0 4px;
-        }
-
-        .modal-body {
+            gap: 15px;
             font-size: 14px;
-            line-height: 1.6;
         }
-
-        .modal-subtitle {
-            display: block;
-            font-size: 15px;
-            font-weight: 700;
-            margin-bottom: 12px;
-            color: #e53e3e;
-        }
-
-        .modal-list {
-            list-style: none;
-            padding-left: 0;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .modal-list li {
-            position: relative;
-            padding-left: 18px;
-            word-break: keep-all;
-        }
-
-        .modal-list li::before {
-            content: "•";
-            position: absolute;
-            left: 0;
-            color: #ed8936;
-            font-weight: bold;
-            font-size: 18px;
-            line-height: 1.2;
-        }
+        #global-draw-toolbar.show { display: flex; }
 
         #storyboard-container {
-            padding: 20px 10px;
-            background-color: var(--bg-color);
+            padding: 40px 0;
             min-height: calc(100vh - 60px);
             display: flex;
             flex-direction: column;
             align-items: center;
             flex-grow: 1;
+            position: relative;
+            width: 100%;
         }
 
         #export-area {
-            background-color: transparent;
             padding: 40px 30px;
             width: 100%;
-            max-width: 1200px;
             display: flex;
             flex-direction: column;
             align-items: center;
+            position: relative;
+            transform-origin: top left;
+            transition: transform 0.1s ease-out;
+            will-change: transform;
+        }
+
+        #global-canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 2500;
+            cursor: crosshair;
+            pointer-events: none;
+        }
+        #global-canvas.active {
+            pointer-events: auto;
         }
 
         .header-section {
@@ -377,21 +356,18 @@
             align-items: center;
             margin-bottom: 25px;
             width: 100%;
+            max-width: 1200px;
         }
 
         .title-input {
             font-size: 32px;
             font-weight: 700;
-            letter-spacing: -0.5px;
             border: none;
             background: transparent;
             text-align: center;
             margin-bottom: 12px;
             width: 90%;
             outline: none;
-            line-height: 1.3;
-            padding: 6px 0;
-            box-sizing: border-box;
             color: var(--text-color);
         }
 
@@ -402,193 +378,76 @@
             border-radius: 6px;
             font-family: inherit;
             font-size: 14px;
-            font-weight: 400;
             color: var(--text-color);
             outline: none;
             resize: none;
             overflow: hidden;
-            word-break: break-all;
             line-height: 1.55;
-            letter-spacing: -0.3px;
-            box-sizing: border-box;
         }
 
-        .auto-expand-textarea::placeholder {
-            color: #888;
-            opacity: 0.8;
-        }
+        .sub-details { width: 100%; max-width: 400px; min-height: 60px; }
+        .board-grid { display: grid; grid-template-columns: 1fr; gap: 20px; width: 100%; max-width: 1200px; position: relative; z-index: 10; }
 
-        .sub-details {
-            width: 100%;
-            max-width: 400px;
-            min-height: 60px;
-        }
-
-        .board-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 20px;
-            width: 100%;
-        }
-
-        .card {
-            display: flex;
-            flex-direction: column;
-            width: 100%;
-            background: transparent;
-            position: relative;
-        }
-
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin: 8px 0 4px 0;
-            gap: 8px;
-        }
-
-        .card-number-input {
-            font-size: 15px;
-            font-weight: 600;
-            letter-spacing: -0.2px;
-            color: var(--card-num-color);
-            border: none;
-            background: transparent;
-            outline: none;
-            flex: 1;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-family: inherit;
-            transition: background-color 0.2s;
-        }
-
-        .card-number-input:hover,
-        .card-number-input:focus {
-            background-color: var(--card-input-bg);
-        }
-
-        .delete-card-btn {
-            background: #ff4d4d;
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 22px;
-            height: 22px;
-            cursor: pointer;
-            font-size: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
+        .card { display: flex; flex-direction: column; width: 100%; position: relative; transition: outline 0.1s ease, opacity 0.1s ease; outline: 2px dashed transparent; outline-offset: -2px; }
+        .card.dragging { opacity: 0.4; }
+        .card.drag-over { outline-color: #4a90e2; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin: 8px 0 4px 0; gap: 6px; }
+        .card-drag-handle { cursor: grab; touch-action: none; user-select: none; color: var(--card-num-color); opacity: 0.5; font-size: 14px; padding: 0 2px; flex-shrink: 0; }
+        .card-drag-handle:active { cursor: grabbing; }
+        .card-number-input { font-size: 15px; font-weight: 600; color: var(--card-num-color); border: none; background: transparent; outline: none; flex: 1; padding: 2px 6px; border-radius: 4px; min-width: 0; }
+        .duplicate-card-btn { background: #4a90e2; color: white; border: none; border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .delete-card-btn { background: #ff4d4d; color: white; border: none; border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 
         .image-box {
-            width: 100%;
-            background-color: #666;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            cursor: pointer;
-            position: relative;
-            overflow: hidden;
-            aspect-ratio: 16 / 9; 
-            border-radius: 4px;
+            width: 100%; background-color: #666; display: flex; justify-content: center; align-items: center;
+            position: relative; overflow: hidden; aspect-ratio: 16 / 9; border-radius: 4px;
         }
+        .image-box img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
-        .image-box img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover; 
-            display: block;
+        .image-overlay-menu {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.6); display: flex; gap: 10px; justify-content: center; align-items: center;
+            opacity: 0; transition: opacity 0.2s ease;
+            z-index: 20;
         }
+        .image-box:hover .image-overlay-menu { opacity: 1; }
+        .overlay-btn { padding: 8px 12px; background: #fff; color: #333; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 12px; }
 
-        .card-description {
-            width: 100%;
-            min-height: 52px;
-            margin-top: 4px;
-        }
-
+        .card-description { width: 100%; min-height: 52px; margin-top: 4px; }
+        
+        /* 플로팅 UI로 변경되어 확대/축소 시 밀리지 않고 하단 중앙에 고정됨 */
         .controls-container {
-            margin-top: 25px;
-            width: 100%;
+            position: fixed;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%);
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
             align-items: center;
             gap: 15px;
-            padding-bottom: 30px;
-        }
-
-        .pagination {
-            display: flex;
-            gap: 6px;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-
-        .page-btn {
-            padding: 6px 12px;
+            padding: 10px 20px;
             background-color: var(--topbar-bg);
             border: 1px solid var(--topbar-border);
-            color: var(--text-color);
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: 500;
+            border-radius: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 3000;
         }
-
-        .page-btn.active {
-            background-color: var(--btn-bg);
-            color: white;
-            border-color: var(--btn-bg);
-        }
-
-        .add-more-btn {
-            padding: 10px 24px;
-            background-color: #555;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 15px;
-            font-weight: 500;
-        }
-
-        .add-more-btn:hover {
-            background-color: #333;
-        }
-
-        input[type="file"] {
-            display: none;
-        }
+        .pagination { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+        .page-btn { padding: 6px 12px; background-color: var(--topbar-bg); border: 1px solid var(--topbar-border); color: var(--text-color); border-radius: 4px; cursor: pointer; }
+        .page-btn.active { background-color: var(--btn-bg); color: white; border-color: var(--btn-bg); }
+        
+        .add-more-btn { padding: 8px 16px; background-color: #555; color: white; border: none; border-radius: 20px; cursor: pointer; font-weight: 500; font-size: 13px; }
+        input[type="file"] { display: none; }
 
         @media (min-width: 768px) {
-            #sidebar {
-                position: relative;
-                left: 0;
-            }
-
-            .toggle-btn {
-                display: none;
-            }
-
-            #sidebar-overlay {
-                display: none !important;
-            }
-
-            .board-grid {
-                grid-template-columns: repeat(3, 1fr);
-            }
-
-            #storyboard-container {
-                padding: 40px;
-            }
+            #sidebar { position: relative; left: 0; }
+            .toggle-btn { display: none; }
+            #sidebar-overlay { display: none !important; }
+            .board-grid { grid-template-columns: repeat(3, 1fr); }
         }
-
-        .capturing .delete-card-btn {
-            display: none !important;
-        }
-        .capturing .board-grid {
-            grid-template-columns: repeat(3, 1fr) !important;
-        }
+        
+        .capturing .delete-card-btn, .capturing .duplicate-card-btn, .capturing .card-drag-handle, .capturing .image-overlay-menu, .capturing .controls-container { display: none !important; }
+        .capturing .board-grid { grid-template-columns: repeat(3, 1fr) !important; }
     </style>
 </head>
 <body>
@@ -606,46 +465,78 @@
             <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
             <div class="btn-group">
                 <button class="export-btn theme-btn" id="theme-toggle-btn" onclick="toggleDarkMode()">🌙 다크모드</button>
+                <button class="export-btn notice-btn" onclick="openNoticeModal()">유의사항</button>
+                <button class="export-btn global-draw-btn" id="global-draw-toggle-btn" onclick="toggleGlobalDrawMode()">🖊️ 전체 스케치 모드</button>
                 <button class="export-btn" onclick="exportBoard('png')">PNG 저장</button>
                 <button class="export-btn" onclick="exportBoard('jpeg')">JPG 저장</button>
                 <button class="export-btn pdf-btn" onclick="exportPDF()">PDF 내보내기</button>
-                <button class="export-btn notice-btn" onclick="toggleNoticeModal(true)">⚠️ 유의사항</button>
             </div>
-            <div class="timestamp-display" id="timestamp-display">최종 사이트 수정: 2026년 9월 3일</div>
+            <div class="timestamp-display" id="timestamp-display">최종 사이트 수정: 2026년 9월 4일</div>
         </div>
 
         <div id="storyboard-container">
             <div id="export-area">
+                <canvas id="global-canvas"></canvas>
                 <div class="header-section">
                     <input type="text" class="title-input" id="board-title" value="TYPE NAME" onblur="checkTitleEmpty(this)" oninput="updateTitle(this.value)">
-                    <textarea class="auto-expand-textarea sub-details" id="sub-details" placeholder="Sub Details (영상 사이즈, 프레임 등)" oninput="handleTextareaInput(this)"></textarea>
+                    <textarea class="auto-expand-textarea sub-details" id="sub-details" placeholder="Sub Details" oninput="handleTextareaInput(this)"></textarea>
                 </div>
-
                 <div class="board-grid" id="board-grid"></div>
-            </div>
-
-            <div class="controls-container">
-                <div class="pagination" id="pagination"></div>
-                <button class="add-more-btn" onclick="addCards(3)">+ 3개 추가하기</button>
             </div>
         </div>
     </div>
 
-    <!-- 유의사항 모달 팝업 -->
+    <!-- 하단 고정 플로팅 UI로 이동 -->
+    <div class="controls-container">
+        <div class="pagination" id="pagination"></div>
+        <button class="add-more-btn" onclick="addCards(3)">+ 3개 추가하기</button>
+    </div>
+    
+    <div id="floating-zoom-panel">
+        <button onclick="zoomOut()">-</button>
+        <span id="zoom-level-text">100%</span>
+        <button onclick="zoomIn()">+</button>
+        <button class="btn-reset" onclick="resetZoom()">초기화</button>
+    </div>
+
     <div id="notice-modal" class="modal-overlay" onclick="closeNoticeModal(event)">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>⚠️ 데이터 저장 관련 유의사항</h3>
-                <button class="modal-close-btn" onclick="toggleNoticeModal(false)">✕</button>
+        <div class="modal-content notice-modal-content" onclick="event.stopPropagation()">
+            <h3>📢 이용 유의사항</h3>
+            <p>스토리보드 생성기를 사용하실 때 아래 사항을 확인해 주세요.</p>
+            <ul>
+                <li>모든 데이터와 전체 스케치는 브라우저 캐시(localStorage)에 동적으로 저장됩니다.</li>
+                <li>이미지 박스와 입력칸을 제외한 모든 여백을 마우스로 클릭한 채 드래그하면 상하좌우로 화면 이동이 가능합니다.</li>
+                <li>축소(Zoom Out) 후에도 보여지는 빈 여백 전체에 자유롭게 스케치가 가능합니다.</li>
+                <li>내보내기(PNG/JPG/PDF)를 하면 스케치된 영역만 자동으로 캡처되어 다운로드됩니다.</li>
+                <li>스케치 작업 중 <strong>Ctrl + Z</strong>를 누르면 이전 단계로 되돌아갑니다.</li>
+            </ul>
+            <div class="draw-footer">
+                <button class="export-btn" onclick="closeNoticeModal()">확인</button>
             </div>
-            <div class="modal-body">
-                <strong class="modal-subtitle">데이터가 삭제되는 대표적인 상황</strong>
-                <ul class="modal-list">
-                    <li><strong>PC 포맷 및 브라우저 재설치:</strong> 컴퓨터를 포맷하거나 크롬을 재설치하는 경우</li>
-                    <li><strong>크롬 데이터 삭제:</strong> 설정에서 '인터넷 사용 기록 삭제' 중 '쿠키 및 기타 사이트 데이터'를 지우는 경우</li>
-                    <li><strong>시크릿 모드 사용:</strong> 시크릿 창에서 작성하고 창을 닫는 경우</li>
-                    <li><strong>다른 브라우저/기기 접속:</strong> Chrome에서 작성한 데이터는 Edge나 다른 컴퓨터로 자동 공유되지 않음</li>
-                </ul>
+        </div>
+    </div>
+
+    <div id="global-draw-toolbar">
+        <label>색상: <input type="color" id="global-pen-color" value="#ff0000"></label>
+        <label>두께: <input type="range" id="global-pen-width" min="1" max="30" value="3" oninput="updateGlobalCursor()"></label>
+        <button class="export-btn" id="global-eraser-btn" onclick="toggleGlobalEraser()" style="background:#555;">🧹 지우개 (OFF)</button>
+        <button class="export-btn" onclick="clearGlobalCanvas()" style="background:#c53030;">전체 지우기</button>
+        <button class="export-btn" onclick="toggleGlobalDrawMode()" style="background:#2b6cb0;">완료/닫기</button>
+    </div>
+
+    <div id="draw-modal" class="modal-overlay">
+        <div class="draw-modal-content">
+            <h3>🎨 카드 스케치하기</h3>
+            <div class="draw-tools">
+                <label>색상: <input type="color" id="pen-color" value="#000000"></label>
+                <label>두께: <input type="range" id="pen-width" min="1" max="30" value="3" oninput="updateCardCursor()"></label>
+                <button class="export-btn" id="card-eraser-btn" onclick="toggleCardEraser()" style="background:#555;">🧹 지우개 (OFF)</button>
+                <button class="export-btn" onclick="clearCanvas()">전체 지우기</button>
+            </div>
+            <canvas id="drawing-canvas" width="680" height="380"></canvas>
+            <div class="draw-footer">
+                <button class="export-btn" style="background:#888;" onclick="closeDrawModal()">취소</button>
+                <button class="export-btn" onclick="saveDrawing()">완료</button>
             </div>
         </div>
     </div>
@@ -654,42 +545,141 @@
 
     <script>
         let currentBoardId = null;
-        let activeImageBox = null;
+        let activeCardGlobalIndex = null;
         let currentPage = 1;
         const ITEMS_PER_PAGE = 9;
-        const STORAGE_KEY = 'storyboards_data_v4';
-        const FIXED_TIMESTAMP = "최종 사이트 수정: 2026년 9월 3일";
+        const STORAGE_KEY = 'storyboards_data_v11';
+        let currentZoom = 1.0;
+        const MIN_ZOOM = 0.5;
+        const MAX_ZOOM = 2.0;
 
-        function toggleNoticeModal(show) {
-            const modal = document.getElementById('notice-modal');
-            if (show) {
-                modal.classList.add('show');
-            } else {
-                modal.classList.remove('show');
+        const cardCanvas = document.getElementById('drawing-canvas');
+        const cardCtx = cardCanvas.getContext('2d');
+        let isCardDrawing = false;
+        let isCardEraser = false;
+        let cardHistory = [];
+
+        const globalCanvas = document.getElementById('global-canvas');
+        const globalCtx = globalCanvas.getContext('2d');
+        let isGlobalDrawing = false;
+        let isGlobalEraser = false;
+        let isGlobalModeActive = false;
+        let globalHistory = [];
+        
+        const mainContent = document.getElementById('main-content');
+        let isPanning = false;
+        let startX, startY, scrollLeft, scrollTop;
+
+        // 공용 디바운스 유틸: 리사이즈/줌 시 레이아웃 계산이 과도하게 반복 실행되어
+        // 비율이 흔들리는 것을 방지하기 위해 사용
+        function debounce(fn, delay) {
+            let timer = null;
+            return function (...args) {
+                clearTimeout(timer);
+                timer = setTimeout(() => fn.apply(this, args), delay);
+            };
+        }
+
+        // 패닝(화면 이동)을 막아야 하는 "진짜 인터랙션 요소"인지 판별.
+        // 이미지 박스(스토리보드 박스)와 입력칸(input/textarea/button 등), 모달/사이드바/플로팅 패널만 제외하고
+        // 카드 여백을 포함한 나머지 공간은 모두 홀드 이동이 가능하도록 함.
+        function isInteractiveTarget(target) {
+            if (!target || !target.closest) return false;
+            if (target.closest('input, textarea, button, select, a, label')) return true;
+            if (target.closest('.image-box')) return true;
+            if (target.closest('.modal-content')) return true;
+            if (target.closest('.board-item-wrapper')) return true;
+            if (target.closest('.controls-container')) return true;
+            if (target.closest('#floating-zoom-panel')) return true;
+            if (target.closest('#global-draw-toolbar')) return true;
+            if (target.closest('#sidebar')) return true;
+            return false;
+        }
+
+        // 상하좌우 모두 부드럽게 드래그하여 이동할 수 있도록 패닝 로직 수정
+        // (스토리보드 박스/입력칸을 제외한 모든 여백에서 홀드 이동 가능)
+        mainContent.addEventListener('mousedown', (e) => {
+            if (isGlobalModeActive || e.button !== 0) return;
+            if (isInteractiveTarget(e.target)) return;
+
+            isPanning = true;
+            mainContent.classList.add('panning');
+            startX = e.clientX;
+            startY = e.clientY;
+            scrollLeft = mainContent.scrollLeft;
+            scrollTop = mainContent.scrollTop;
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isPanning) return;
+            e.preventDefault();
+            const walkX = e.clientX - startX; 
+            const walkY = e.clientY - startY;
+            mainContent.scrollLeft = scrollLeft - walkX;
+            mainContent.scrollTop = scrollTop - walkY;
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (isPanning) {
+                isPanning = false;
+                mainContent.classList.remove('panning');
             }
-        }
+        });
 
-        function closeNoticeModal(event) {
-            if (event.target.id === 'notice-modal') {
-                toggleNoticeModal(false);
+        window.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+                if (document.getElementById('draw-modal').classList.contains('show')) {
+                    e.preventDefault();
+                    undoCardSketch();
+                } else if (isGlobalModeActive) {
+                    e.preventDefault();
+                    undoGlobalSketch();
+                }
             }
-        }
+        });
 
-        function updateTimestampDisplay() {
-            const el = document.getElementById('timestamp-display');
-            if (el) el.innerText = FIXED_TIMESTAMP;
+        // 화면 중앙을 기준으로 확대/축소되도록 계산.
+        // export-area는 transform-origin: top left 이므로 좌상단 좌표는 스케일이 바뀌어도 그대로 유지된다는 점을 이용해
+        // "현재 화면 중앙에 보이는 지점"이 확대/축소 후에도 계속 화면 중앙에 오도록 스크롤 위치를 보정한다.
+        function setZoom(level) {
+            const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, level));
+            if (Math.abs(newZoom - currentZoom) < 0.001) return;
+
+            const exportArea = document.getElementById('export-area');
+            const containerRect = mainContent.getBoundingClientRect();
+            const centerScreenX = containerRect.left + containerRect.width / 2;
+            const centerScreenY = containerRect.top + containerRect.height / 2;
+
+            const exportRect = exportArea.getBoundingClientRect();
+            // 현재 화면 중앙점을 export-area의 스케일되지 않은(local) 좌표계로 환산
+            const localX = (centerScreenX - exportRect.left) / currentZoom;
+            const localY = (centerScreenY - exportRect.top) / currentZoom;
+
+            currentZoom = newZoom;
+            exportArea.style.transform = `scale(${currentZoom})`;
+            document.getElementById('zoom-level-text').innerText = Math.round(currentZoom * 100) + '%';
+
+            // transform-origin이 top left이므로 exportRect.left/top(좌상단)은 스케일 변경으로 움직이지 않음
+            const newScreenX = exportRect.left + localX * currentZoom;
+            const newScreenY = exportRect.top + localY * currentZoom;
+
+            mainContent.scrollLeft += (newScreenX - centerScreenX);
+            mainContent.scrollTop += (newScreenY - centerScreenY);
+
+            initGlobalCanvasSize();
         }
+        function zoomIn() { setZoom(currentZoom + 0.1); }
+        function zoomOut() { setZoom(currentZoom - 0.1); }
+        function resetZoom() { setZoom(1.0); }
 
         function toggleDarkMode() {
             const isDark = document.body.classList.toggle('dark-mode');
-            const btn = document.getElementById('theme-toggle-btn');
-            btn.innerText = isDark ? '☀️ 라이트모드' : '🌙 다크모드';
+            document.getElementById('theme-toggle-btn').innerText = isDark ? '☀️ 라이트모드' : '🌙 다크모드';
             localStorage.setItem('theme_mode', isDark ? 'dark' : 'light');
         }
 
         function initTheme() {
-            const savedTheme = localStorage.getItem('theme_mode');
-            if (savedTheme === 'dark') {
+            if (localStorage.getItem('theme_mode') === 'dark') {
                 document.body.classList.add('dark-mode');
                 document.getElementById('theme-toggle-btn').innerText = '☀️ 라이트모드';
             }
@@ -697,23 +687,22 @@
 
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('sidebar-overlay');
             sidebar.classList.toggle('open');
-            if (window.innerWidth < 768) {
-                overlay.style.display = sidebar.classList.contains('open') ? 'block' : 'none';
+            document.getElementById('sidebar-overlay').style.display = sidebar.classList.contains('open') ? 'block' : 'none';
+        }
+
+        function openNoticeModal() { document.getElementById('notice-modal').classList.add('show'); }
+        function closeNoticeModal(e) { 
+            if(!e || e.target.classList.contains('modal-overlay') || e.target.tagName === 'BUTTON') {
+                document.getElementById('notice-modal').classList.remove('show'); 
             }
         }
 
         function getStorageData() {
             return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { order: [], boards: {} };
         }
-
         function setStorageData(data) {
-            try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-            } catch (e) {
-                alert("저장 용량이 초과되었습니다. 필요없는 스토리보드를 정리해 주세요.");
-            }
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
         }
 
         window.onload = () => {
@@ -726,274 +715,627 @@
                 renderSidebar();
                 loadBoard(currentBoardId);
             }
+            window.addEventListener('resize', debounce(initGlobalCanvasSize, 150));
         };
+
+        // 콘텐츠 크기 계산을 매번 "실제 콘텐츠 기준"으로 새로 하여
+        // min-width/min-height 값이 계속 누적되어 커지면서 비율이 이상해지는 문제를 방지한다.
+        function initGlobalCanvasSize() {
+            const exportArea = document.getElementById('export-area');
+
+            // 이전에 설정된 min 값을 먼저 제거해 실제 콘텐츠 크기를 정확히 측정
+            exportArea.style.minWidth = '0px';
+            exportArea.style.minHeight = '0px';
+
+            const naturalContentHeight = exportArea.scrollHeight;
+
+            const viewWidth = mainContent.clientWidth / currentZoom;
+            const viewHeight = mainContent.clientHeight / currentZoom;
+
+            let neededWidth = Math.max(viewWidth, 1200);
+            let neededHeight = Math.max(naturalContentHeight + 400, viewHeight + 400);
+
+            neededWidth = Math.ceil(neededWidth / 2) * 2;
+            neededHeight = Math.ceil(neededHeight / 2) * 2;
+
+            exportArea.style.minWidth = neededWidth + 'px';
+            exportArea.style.minHeight = neededHeight + 'px';
+
+            const tempCanvas = document.createElement('canvas');
+            const oldWidth = globalCanvas.width;
+            const oldHeight = globalCanvas.height;
+            
+            if (oldWidth > 0 && oldHeight > 0) {
+                tempCanvas.width = oldWidth;
+                tempCanvas.height = oldHeight;
+                tempCanvas.getContext('2d').drawImage(globalCanvas, 0, 0);
+            }
+
+            const newWidth = exportArea.scrollWidth;
+            const newHeight = exportArea.scrollHeight;
+
+            if (oldWidth !== newWidth || oldHeight !== newHeight) {
+                globalCanvas.width = newWidth;
+                globalCanvas.height = newHeight;
+
+                if (tempCanvas.width > 0) {
+                    const shiftX = (newWidth - oldWidth) / 2;
+                    globalCtx.drawImage(tempCanvas, shiftX, 0); 
+                }
+            }
+        }
+
+        function saveGlobalSketch() {
+            if (!currentBoardId) return;
+            const data = getStorageData();
+            if (data.boards[currentBoardId]) {
+                data.boards[currentBoardId].globalSketch = globalCanvas.toDataURL('image/png');
+                setStorageData(data);
+            }
+        }
+
+        function pushGlobalHistory() {
+            if (globalHistory.length > 20) globalHistory.shift();
+            globalHistory.push(globalCanvas.toDataURL('image/png'));
+        }
+
+        function undoGlobalSketch() {
+            if (globalHistory.length > 0) {
+                const lastState = globalHistory.pop();
+                const img = new Image();
+                img.onload = () => {
+                    globalCtx.clearRect(0, 0, globalCanvas.width, globalCanvas.height);
+                    const shiftX = (globalCanvas.width - img.width) / 2;
+                    globalCtx.drawImage(img, shiftX, 0);
+                    saveGlobalSketch();
+                };
+                img.src = lastState;
+            }
+        }
+
+        function toggleGlobalDrawMode() {
+            isGlobalModeActive = !isGlobalModeActive;
+            const btn = document.getElementById('global-draw-toggle-btn');
+            const toolbar = document.getElementById('global-draw-toolbar');
+
+            if (isGlobalModeActive) {
+                document.body.classList.add('global-drawing');
+                globalCanvas.classList.add('active');
+                toolbar.classList.add('show');
+                btn.classList.add('active-mode');
+                btn.innerText = '🖊️ 전체 스케치 중...';
+                
+                isGlobalEraser = false;
+                document.getElementById('global-eraser-btn').innerText = '🧹 지우개 (OFF)';
+                document.getElementById('global-eraser-btn').style.background = '#555';
+                updateGlobalCursor();
+
+                initGlobalCanvasSize();
+                loadGlobalSketch();
+                globalHistory = [globalCanvas.toDataURL('image/png')];
+            } else {
+                saveGlobalSketch();
+                document.body.classList.remove('global-drawing');
+                globalCanvas.classList.remove('active');
+                toolbar.classList.remove('show');
+                btn.classList.remove('active-mode');
+                btn.innerText = '🖊️ 전체 스케치 모드';
+            }
+        }
+
+        function updateGlobalCursor() {
+            const width = document.getElementById('global-pen-width').value;
+            if (isGlobalEraser) {
+                const size = Math.max(parseInt(width), 8);
+                const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}' viewBox='0 0 ${size} ${size}'><circle cx='${size/2}' cy='${size/2}' r='${size/2 - 1}' stroke='black' stroke-width='1.5' fill='rgba(255,255,255,0.3)'/><circle cx='${size/2}' cy='${size/2}' r='${size/2 - 2}' stroke='white' stroke-width='1' fill='none'/></svg>`;
+                globalCanvas.style.cursor = `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}") ${size/2} ${size/2}, auto`;
+            } else {
+                globalCanvas.style.cursor = isGlobalModeActive ? 'crosshair' : 'default';
+            }
+        }
+
+        function updateCardCursor() {
+            const width = document.getElementById('pen-width').value;
+            if (isCardEraser) {
+                const size = Math.max(parseInt(width), 8);
+                const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}' viewBox='0 0 ${size} ${size}'><circle cx='${size/2}' cy='${size/2}' r='${size/2 - 1}' stroke='black' stroke-width='1.5' fill='rgba(255,255,255,0.3)'/><circle cx='${size/2}' cy='${size/2}' r='${size/2 - 2}' stroke='white' stroke-width='1' fill='none'/></svg>`;
+                cardCanvas.style.cursor = `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}") ${size/2} ${size/2}, auto`;
+            } else {
+                cardCanvas.style.cursor = 'crosshair';
+            }
+        }
+
+        function toggleGlobalEraser() {
+            isGlobalEraser = !isGlobalEraser;
+            const btn = document.getElementById('global-eraser-btn');
+            btn.innerText = isGlobalEraser ? '🧹 지우개 (ON)' : '🧹 지우개 (OFF)';
+            btn.style.background = isGlobalEraser ? '#2b6cb0' : '#555';
+            updateGlobalCursor();
+        }
+
+        function clearGlobalCanvas() {
+            pushGlobalHistory();
+            globalCtx.clearRect(0, 0, globalCanvas.width, globalCanvas.height);
+            saveGlobalSketch();
+        }
+
+        globalCanvas.onmousedown = (e) => startGlobalDraw(e);
+        globalCanvas.onmousemove = (e) => drawGlobal(e);
+        globalCanvas.onmouseup = stopGlobalDraw;
+        globalCanvas.onmouseleave = stopGlobalDraw;
+
+        globalCanvas.ontouchstart = (e) => { startGlobalDraw(e.touches[0]); e.preventDefault(); };
+        globalCanvas.ontouchmove = (e) => { drawGlobal(e.touches[0]); e.preventDefault(); };
+        globalCanvas.ontouchend = stopGlobalDraw;
+
+        function getGlobalPos(e) {
+            const rect = globalCanvas.getBoundingClientRect();
+            return {
+                x: (e.clientX - rect.left) * (globalCanvas.width / rect.width),
+                y: (e.clientY - rect.top) * (globalCanvas.height / rect.height)
+            };
+        }
+
+        function startGlobalDraw(e) {
+            if (!isGlobalModeActive) return;
+            pushGlobalHistory();
+            isGlobalDrawing = true;
+            const pos = getGlobalPos(e);
+            globalCtx.beginPath();
+            globalCtx.moveTo(pos.x, pos.y);
+        }
+
+        function drawGlobal(e) {
+            if (!isGlobalDrawing || !isGlobalModeActive) return;
+            const pos = getGlobalPos(e);
+            globalCtx.lineWidth = document.getElementById('global-pen-width').value;
+            globalCtx.lineCap = 'round';
+            globalCtx.lineJoin = 'round';
+
+            if (isGlobalEraser) {
+                globalCtx.globalCompositeOperation = 'destination-out';
+                globalCtx.strokeStyle = 'rgba(0,0,0,1)';
+            } else {
+                globalCtx.globalCompositeOperation = 'source-over';
+                globalCtx.strokeStyle = document.getElementById('global-pen-color').value;
+            }
+
+            globalCtx.lineTo(pos.x, pos.y);
+            globalCtx.stroke();
+        }
+
+        function stopGlobalDraw() {
+            if(isGlobalDrawing) {
+                isGlobalDrawing = false;
+                saveGlobalSketch();
+            }
+        }
 
         function createNewBoard() {
             const data = getStorageData();
             const id = 'board_' + Date.now();
-
             data.boards[id] = {
                 title: 'TYPE NAME',
                 subDetails: '',
+                globalSketch: '',
                 cards: [
                     { img: '', desc: '', ratio: '16/9', num: '#1' },
                     { img: '', desc: '', ratio: '16/9', num: '#2' },
-                    { img: '', desc: '', ratio: '16/9', num: '#3' }
+                    { img: '', desc: '', ratio: '16/9', num: '#3' },
+                    { img: '', desc: '', ratio: '16/9', num: '#4' },
+                    { img: '', desc: '', ratio: '16/9', num: '#5' },
+                    { img: '', desc: '', ratio: '16/9', num: '#6' }
                 ]
             };
             if (!data.order) data.order = [];
             data.order.push(id);
-
             setStorageData(data);
             currentBoardId = id;
             currentPage = 1;
             renderSidebar();
             loadBoard(id);
-
-            if (window.innerWidth < 768) {
-                const sidebar = document.getElementById('sidebar');
-                if (sidebar.classList.contains('open')) toggleSidebar();
-            }
         }
 
         function deleteBoard(id, e) {
             e.stopPropagation();
-            if (!confirm("해당 스토리보드를 삭제하시겠습니까?")) return;
-
             const data = getStorageData();
             delete data.boards[id];
-            data.order = data.order.filter(boardId => boardId !== id);
-
+            data.order = data.order.filter(bId => bId !== id);
             setStorageData(data);
-
-            if (data.order.length > 0) {
-                currentBoardId = data.order[0];
-            } else {
-                createNewBoard();
-                return;
-            }
+            if (data.order.length > 0) currentBoardId = data.order[0];
+            else createNewBoard();
             renderSidebar();
             loadBoard(currentBoardId);
+        }
+
+        // 사이드바 순서 변경(드래그)을 위한 상태값
+        let dragBoardId = null;
+        // 카드 순서 변경(드래그)을 위한 상태값
+        let dragCardIndex = null;
+
+        document.getElementById('board-grid').addEventListener('pointermove', (e) => {
+            if (dragCardIndex === null) return;
+            document.querySelectorAll('.card').forEach(el => el.classList.remove('drag-over'));
+            const targetCard = document.elementFromPoint(e.clientX, e.clientY)?.closest('.card');
+            if (targetCard && parseInt(targetCard.dataset.globalIndex) !== dragCardIndex) {
+                targetCard.classList.add('drag-over');
+            }
+        });
+
+        window.addEventListener('pointerup', (e) => {
+            if (dragCardIndex === null) return;
+            const targetCard = document.elementFromPoint(e.clientX, e.clientY)?.closest('.card');
+            document.querySelectorAll('.card').forEach(el => el.classList.remove('dragging', 'drag-over'));
+            if (targetCard) {
+                const targetIndex = parseInt(targetCard.dataset.globalIndex);
+                if (!isNaN(targetIndex) && targetIndex !== dragCardIndex) {
+                    reorderCards(dragCardIndex, targetIndex);
+                }
+            }
+            dragCardIndex = null;
+        });
+
+        function reorderCards(fromIndex, toIndex) {
+            saveCurrentBoardData();
+            const data = getStorageData();
+            const board = data.boards[currentBoardId];
+            if (!board) return;
+            const cards = board.cards;
+            if (fromIndex < 0 || fromIndex >= cards.length || toIndex < 0 || toIndex >= cards.length) return;
+            const [moved] = cards.splice(fromIndex, 1);
+            cards.splice(toIndex, 0, moved);
+            setStorageData(data);
+            currentPage = Math.floor(toIndex / ITEMS_PER_PAGE) + 1;
+            renderGrid();
+        }
+
+        function duplicateCard(globalIndex) {
+            saveCurrentBoardData();
+            const data = getStorageData();
+            const board = data.boards[currentBoardId];
+            if (!board) return;
+            const original = board.cards[globalIndex];
+            if (!original) return;
+
+            const copy = JSON.parse(JSON.stringify(original));
+            const insertIndex = globalIndex + 1;
+            board.cards.splice(insertIndex, 0, copy);
+            setStorageData(data);
+
+            currentPage = Math.floor(insertIndex / ITEMS_PER_PAGE) + 1;
+            renderGrid();
         }
 
         function renderSidebar() {
             const data = getStorageData();
             const listEl = document.getElementById('board-list');
             listEl.innerHTML = '';
-
             data.order.forEach(id => {
                 const board = data.boards[id];
                 if (!board) return;
-
                 const wrapper = document.createElement('div');
                 wrapper.className = `board-item-wrapper ${id === currentBoardId ? 'active' : ''}`;
-                wrapper.draggable = true;
                 wrapper.dataset.id = id;
-
-                const handle = document.createElement('span');
-                handle.className = 'drag-handle';
-                handle.innerHTML = '⋮⋮';
-
-                const item = document.createElement('div');
-                item.className = 'board-item';
-                item.innerText = board.title || 'TYPE NAME';
-                item.onclick = () => {
-                    currentBoardId = id;
-                    currentPage = 1;
-                    renderSidebar();
-                    loadBoard(id);
-                    if (window.innerWidth < 768) toggleSidebar();
+                wrapper.innerHTML = `
+                    <span class="drag-handle" title="순서 변경">⋮⋮</span>
+                    <div class="board-item">${board.title}</div>
+                    <button class="duplicate-board-btn" onclick="duplicateBoard('${id}', event)" title="복제">⧉</button>
+                    <button class="delete-board-btn" onclick="deleteBoard('${id}', event)" title="삭제">✕</button>
+                `;
+                wrapper.querySelector('.board-item').onclick = () => {
+                    saveGlobalSketch();
+                    currentBoardId = id; currentPage = 1; renderSidebar(); loadBoard(id);
                 };
 
-                const delBtn = document.createElement('button');
-                delBtn.className = 'delete-board-btn';
-                delBtn.innerText = '✕';
-                delBtn.onclick = (e) => deleteBoard(id, e);
-
-                wrapper.appendChild(handle);
-                wrapper.appendChild(item);
-                wrapper.appendChild(delBtn);
-
-                addDragEvents(wrapper);
+                // 드래그 핸들(⋮⋮)을 잡고 위/아래로 끌면 순서가 바뀜 (마우스/터치 공통)
+                wrapper.querySelector('.drag-handle').addEventListener('pointerdown', (e) => {
+                    e.preventDefault();
+                    dragBoardId = id;
+                    wrapper.classList.add('dragging');
+                });
 
                 listEl.appendChild(wrapper);
             });
         }
 
-        let draggedItem = null;
+        document.getElementById('board-list').addEventListener('pointermove', (e) => {
+            if (!dragBoardId) return;
+            document.querySelectorAll('.board-item-wrapper').forEach(el => el.classList.remove('drag-over'));
+            const target = document.elementFromPoint(e.clientX, e.clientY)?.closest('.board-item-wrapper');
+            if (target && target.dataset.id !== dragBoardId) {
+                target.classList.add('drag-over');
+            }
+        });
 
-        function addDragEvents(el) {
-            el.addEventListener('dragstart', (e) => {
-                draggedItem = el;
-                setTimeout(() => el.classList.add('dragging'), 0);
-            });
+        window.addEventListener('pointerup', (e) => {
+            if (!dragBoardId) return;
+            const target = document.elementFromPoint(e.clientX, e.clientY)?.closest('.board-item-wrapper');
+            document.querySelectorAll('.board-item-wrapper').forEach(el => el.classList.remove('dragging', 'drag-over'));
+            if (target && target.dataset.id !== dragBoardId) {
+                reorderBoards(dragBoardId, target.dataset.id);
+            }
+            dragBoardId = null;
+        });
 
-            el.addEventListener('dragend', () => {
-                el.classList.remove('dragging');
-                draggedItem = null;
-                saveNewOrder();
-            });
-
-            el.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                const listEl = document.getElementById('board-list');
-                const afterElement = getDragAfterElement(listEl, e.clientY);
-                if (afterElement == null) {
-                    listEl.appendChild(draggedItem);
-                } else {
-                    listEl.insertBefore(draggedItem, afterElement);
-                }
-            });
-        }
-
-        function getDragAfterElement(container, y) {
-            const draggableElements = [...container.querySelectorAll('.board-item-wrapper:not(.dragging)')];
-            return draggableElements.reduce((closest, child) => {
-                const box = child.getBoundingClientRect();
-                const offset = y - box.top - box.height / 2;
-                if (offset < 0 && offset > closest.offset) {
-                    return { offset: offset, element: child };
-                } else {
-                    return closest;
-                }
-            }, { offset: Number.NEGATIVE_INFINITY }).element;
-        }
-
-        function saveNewOrder() {
+        function reorderBoards(draggedId, targetId) {
             const data = getStorageData();
-            const newOrder = [];
-            document.querySelectorAll('.board-item-wrapper').forEach(wrapper => {
-                newOrder.push(wrapper.dataset.id);
-            });
-            data.order = newOrder;
+            const fromIndex = data.order.indexOf(draggedId);
+            const toIndex = data.order.indexOf(targetId);
+            if (fromIndex === -1 || toIndex === -1) return;
+            data.order.splice(fromIndex, 1);
+            data.order.splice(toIndex, 0, draggedId);
             setStorageData(data);
+            renderSidebar();
+        }
+
+        function duplicateBoard(id, e) {
+            e.stopPropagation();
+            saveGlobalSketch();
+            const data = getStorageData();
+            const original = data.boards[id];
+            if (!original) return;
+
+            const newId = 'board_' + Date.now();
+            const copy = JSON.parse(JSON.stringify(original));
+            copy.title = (original.title || 'TYPE NAME') + ' (복사본)';
+            data.boards[newId] = copy;
+
+            const idx = data.order.indexOf(id);
+            data.order.splice(idx + 1, 0, newId);
+            setStorageData(data);
+
+            currentBoardId = newId;
+            currentPage = 1;
+            renderSidebar();
+            loadBoard(newId);
+        }
+
+        function loadGlobalSketch() {
+            const data = getStorageData();
+            const board = data.boards[currentBoardId];
+            if (board && board.globalSketch) {
+                const img = new Image();
+                img.onload = () => {
+                    if (img.height > globalCanvas.height) {
+                        globalCanvas.height = img.height;
+                        document.getElementById('export-area').style.minHeight = img.height + 'px';
+                    }
+                    globalCtx.clearRect(0, 0, globalCanvas.width, globalCanvas.height);
+                    const shiftX = (globalCanvas.width - img.width) / 2;
+                    globalCtx.drawImage(img, shiftX, 0);
+                };
+                img.src = board.globalSketch;
+            } else {
+                globalCtx.clearRect(0, 0, globalCanvas.width, globalCanvas.height);
+            }
         }
 
         function loadBoard(id) {
             const data = getStorageData();
             const board = data.boards[id];
             if (!board) return;
-
-            const titleInput = document.getElementById('board-title');
-            const subDetailsInput = document.getElementById('sub-details');
-
-            titleInput.value = board.title;
-            subDetailsInput.value = board.subDetails;
-            updateTimestampDisplay();
-
-            autoExpand(subDetailsInput);
+            document.getElementById('board-title').value = board.title;
+            document.getElementById('sub-details').value = board.subDetails;
+            autoExpand(document.getElementById('sub-details'));
             renderGrid();
+            setTimeout(() => {
+                initGlobalCanvasSize();
+                loadGlobalSketch();
+            }, 50);
         }
 
         function renderGrid() {
             const data = getStorageData();
             const board = data.boards[currentBoardId];
             if (!board) return;
-
             const grid = document.getElementById('board-grid');
             grid.innerHTML = '';
 
-            const totalCards = board.cards.length;
             const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-            const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, totalCards);
-            const pageCards = board.cards.slice(startIndex, endIndex);
+            const pageCards = board.cards.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
-            pageCards.forEach((cardData, index) => {
+            pageCards.forEach((card, index) => {
                 const globalIndex = startIndex + index;
-                grid.appendChild(createCardElement(globalIndex + 1, cardData.img, cardData.desc, cardData.ratio, globalIndex, cardData.num));
+                const cardEl = document.createElement('div');
+                cardEl.className = 'card';
+
+                const imgBox = document.createElement('div');
+                imgBox.className = 'image-box';
+                if (card.ratio) imgBox.style.aspectRatio = card.ratio;
+                if (card.img) {
+                    const imgElement = document.createElement('img');
+                    imgElement.src = card.img;
+                    imgBox.appendChild(imgElement);
+                }
+
+                const overlay = document.createElement('div');
+                overlay.className = 'image-overlay-menu';
+                overlay.innerHTML = `
+                    <button class="overlay-btn" onclick="triggerUpload(${globalIndex})">📁 업로드</button>
+                    <button class="overlay-btn" onclick="openDrawModal(${globalIndex}, '${card.img || ''}')">✏️ 직접그리기</button>
+                `;
+                imgBox.appendChild(overlay);
+
+                cardEl.innerHTML = `
+                    <div class="card-header">
+                        <span class="card-drag-handle" title="순서 변경">⋮⋮</span>
+                        <input type="text" class="card-number-input" value="${card.num}" oninput="saveCurrentBoardData()">
+                        <button class="duplicate-card-btn" onclick="duplicateCard(${globalIndex})" title="복제">⧉</button>
+                        <button class="delete-card-btn" onclick="deleteCard(${globalIndex})">✕</button>
+                    </div>
+                    <textarea class="auto-expand-textarea card-description" placeholder="description" oninput="handleTextareaInput(this)">${card.desc}</textarea>
+                `;
+                cardEl.prepend(imgBox);
+                cardEl.dataset.globalIndex = globalIndex;
+
+                cardEl.querySelector('.card-drag-handle').addEventListener('pointerdown', (e) => {
+                    e.preventDefault();
+                    dragCardIndex = globalIndex;
+                    cardEl.classList.add('dragging');
+                });
+
+                grid.appendChild(cardEl);
+                autoExpand(cardEl.querySelector('.card-description'));
             });
-
-            renderPagination(totalCards);
+            renderPagination(board.cards.length);
+            setTimeout(initGlobalCanvasSize, 50);
         }
 
-        function createCardElement(number, imgSrc, descText, ratio, globalIndex, customNum) {
-            const card = document.createElement('div');
-            card.className = 'card';
-
-            const imgBox = document.createElement('div');
-            imgBox.className = 'image-box';
-            if (ratio) imgBox.style.aspectRatio = ratio;
-
-            if (imgSrc) {
-                const img = document.createElement('img');
-                img.src = imgSrc;
-                imgBox.appendChild(img);
-            }
-            imgBox.onclick = () => triggerImageUpload(imgBox, globalIndex);
-
-            const header = document.createElement('div');
-            header.className = 'card-header';
-
-            const numEl = document.createElement('input');
-            numEl.type = 'text';
-            numEl.className = 'card-number-input';
-            numEl.value = customNum || `#${number}`;
-            numEl.oninput = () => saveCurrentBoardData();
-
-            const delCardBtn = document.createElement('button');
-            delCardBtn.className = 'delete-card-btn';
-            delCardBtn.innerText = '✕';
-            delCardBtn.onclick = () => deleteCard(globalIndex);
-
-            header.appendChild(numEl);
-            header.appendChild(delCardBtn);
-
-            const descEl = document.createElement('textarea');
-            descEl.className = 'auto-expand-textarea card-description';
-            descEl.placeholder = 'description';
-            descEl.value = descText || '';
-            descEl.oninput = (e) => {
-                handleTextareaInput(e.target);
-                saveCurrentBoardData();
-            };
-
-            card.appendChild(imgBox);
-            card.appendChild(header);
-            card.appendChild(descEl);
-
-            setTimeout(() => autoExpand(descEl), 0);
-
-            return card;
-        }
-
-        function renderPagination(totalItems) {
+        function renderPagination(total) {
             const paginationEl = document.getElementById('pagination');
             paginationEl.innerHTML = '';
-            const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE) || 1;
-
+            const totalPages = Math.ceil(total / ITEMS_PER_PAGE) || 1;
             for (let i = 1; i <= totalPages; i++) {
                 const btn = document.createElement('button');
                 btn.className = `page-btn ${i === currentPage ? 'active' : ''}`;
                 btn.innerText = i;
-                btn.onclick = () => {
-                    currentPage = i;
-                    renderGrid();
-                };
+                btn.onclick = () => { currentPage = i; renderGrid(); };
                 paginationEl.appendChild(btn);
             }
         }
 
-        function autoExpand(field) {
-            field.style.height = 'inherit';
-            const computed = window.getComputedStyle(field);
-            const height = field.scrollHeight + parseInt(computed.getPropertyValue('border-top-width'), 10) + parseInt(computed.getPropertyValue('border-bottom-width'), 10);
-            field.style.height = height + 'px';
+        function triggerUpload(index) {
+            activeCardGlobalIndex = index;
+            document.getElementById('file-input').click();
         }
 
-        function handleTextareaInput(field) {
-            autoExpand(field);
-            saveCurrentBoardData();
+        function handleImageUpload(e) {
+            const file = e.target.files[0];
+            if (!file || activeCardGlobalIndex === null) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const data = getStorageData();
+                data.boards[currentBoardId].cards[activeCardGlobalIndex].img = event.target.result;
+                setStorageData(data);
+                renderGrid();
+            };
+            reader.readAsDataURL(file);
+            e.target.value = '';
+        }
+
+        let targetCardIndexForDraw = null;
+        function openDrawModal(index, existingImg) {
+            targetCardIndexForDraw = index;
+            document.getElementById('draw-modal').classList.add('show');
+            cardCtx.fillStyle = '#ffffff';
+            cardCtx.fillRect(0, 0, cardCanvas.width, cardCanvas.height);
+            isCardEraser = false;
+            document.getElementById('card-eraser-btn').innerText = '🧹 지우개 (OFF)';
+            document.getElementById('card-eraser-btn').style.background = '#555';
+            updateCardCursor();
+
+            if (existingImg && existingImg !== 'undefined') {
+                const img = new Image();
+                img.onload = () => {
+                    cardCtx.drawImage(img, 0, 0, cardCanvas.width, cardCanvas.height);
+                    cardHistory = [cardCanvas.toDataURL('image/png')];
+                };
+                img.src = existingImg;
+            } else {
+                cardHistory = [cardCanvas.toDataURL('image/png')];
+            }
+        }
+        function closeDrawModal() { document.getElementById('draw-modal').classList.remove('show'); }
+
+        function pushCardHistory() {
+            if (cardHistory.length > 20) cardHistory.shift();
+            cardHistory.push(cardCanvas.toDataURL('image/png'));
+        }
+
+        function undoCardSketch() {
+            if (cardHistory.length > 0) {
+                const lastState = cardHistory.pop();
+                const img = new Image();
+                img.onload = () => {
+                    cardCtx.clearRect(0, 0, cardCanvas.width, cardCanvas.height);
+                    cardCtx.drawImage(img, 0, 0);
+                };
+                img.src = lastState;
+            }
+        }
+        
+        function toggleCardEraser() {
+            isCardEraser = !isCardEraser;
+            const btn = document.getElementById('card-eraser-btn');
+            btn.innerText = isCardEraser ? '🧹 지우개 (ON)' : '🧹 지우개 (OFF)';
+            btn.style.background = isCardEraser ? '#2b6cb0' : '#555';
+            updateCardCursor();
+        }
+
+        function clearCanvas() {
+            pushCardHistory();
+            cardCtx.fillStyle = '#ffffff';
+            cardCtx.fillRect(0, 0, cardCanvas.width, cardCanvas.height);
+        }
+
+        cardCanvas.onmousedown = (e) => { 
+            pushCardHistory();
+            isCardDrawing = true; 
+            const p = getCardPos(e); 
+            cardCtx.beginPath(); 
+            cardCtx.moveTo(p.x, p.y); 
+        };
+        cardCanvas.onmousemove = (e) => {
+            if (!isCardDrawing) return;
+            const p = getCardPos(e);
+            cardCtx.lineWidth = document.getElementById('pen-width').value;
+            cardCtx.lineCap = 'round'; cardCtx.lineJoin = 'round';
+            if (isCardEraser) {
+                cardCtx.globalCompositeOperation = 'destination-out';
+            } else {
+                cardCtx.globalCompositeOperation = 'source-over';
+                cardCtx.strokeStyle = document.getElementById('pen-color').value;
+            }
+            cardCtx.lineTo(p.x, p.y); cardCtx.stroke();
+        };
+        cardCanvas.onmouseup = () => isCardDrawing = false;
+        cardCanvas.onmouseleave = () => isCardDrawing = false;
+        
+        cardCanvas.ontouchstart = (e) => { 
+            pushCardHistory();
+            isCardDrawing = true; 
+            const p = getCardPos(e.touches[0]); 
+            cardCtx.beginPath(); 
+            cardCtx.moveTo(p.x, p.y); 
+            e.preventDefault(); 
+        };
+        cardCanvas.ontouchmove = (e) => {
+            if (!isCardDrawing) return;
+            const p = getCardPos(e.touches[0]);
+            cardCtx.lineWidth = document.getElementById('pen-width').value;
+            cardCtx.lineCap = 'round'; cardCtx.lineJoin = 'round';
+            if (isCardEraser) {
+                cardCtx.globalCompositeOperation = 'destination-out';
+            } else {
+                cardCtx.globalCompositeOperation = 'source-over';
+                cardCtx.strokeStyle = document.getElementById('pen-color').value;
+            }
+            cardCtx.lineTo(p.x, p.y); cardCtx.stroke();
+            e.preventDefault();
+        };
+        cardCanvas.ontouchend = () => isCardDrawing = false;
+
+        function getCardPos(e) {
+            const rect = cardCanvas.getBoundingClientRect();
+            return { x: (e.clientX - rect.left) * (cardCanvas.width / rect.width), y: (e.clientY - rect.top) * (cardCanvas.height / rect.height) };
+        }
+
+        function saveDrawing() {
+            if (targetCardIndexForDraw !== null) {
+                const data = getStorageData();
+                data.boards[currentBoardId].cards[targetCardIndexForDraw].img = cardCanvas.toDataURL('image/png');
+                setStorageData(data);
+                renderGrid();
+            }
+            closeDrawModal();
         }
 
         function addCards(count = 3) {
             const data = getStorageData();
             const board = data.boards[currentBoardId];
-
             for (let i = 0; i < count; i++) {
-                const nextNum = `#${board.cards.length + 1}`;
-                board.cards.push({ img: '', desc: '', ratio: '16/9', num: nextNum });
+                board.cards.push({ img: '', desc: '', ratio: '16/9', num: `#${board.cards.length + 1}` });
             }
-
             setStorageData(data);
             currentPage = Math.ceil(board.cards.length / ITEMS_PER_PAGE);
             renderGrid();
@@ -1002,256 +1344,234 @@
         function deleteCard(index) {
             const data = getStorageData();
             const board = data.boards[currentBoardId];
-
             board.cards.splice(index, 1);
             setStorageData(data);
-
-            const totalPages = Math.ceil(board.cards.length / ITEMS_PER_PAGE) || 1;
-            if (currentPage > totalPages) currentPage = totalPages;
-
             renderGrid();
-        }
-
-        function checkTitleEmpty(input) {
-            if (input.value.trim() === '') {
-                input.value = 'TYPE NAME';
-            }
-            saveCurrentBoardData();
-            renderSidebar();
-        }
-
-        function updateTitle() {
-            renderSidebar();
-        }
-
-        function triggerImageUpload(box, globalIndex) {
-            activeImageBox = { box, globalIndex };
-            document.getElementById('file-input').click();
-        }
-
-        function handleImageUpload(e) {
-            const file = e.target.files[0];
-            if (!file || !activeImageBox) return;
-
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                const img = new Image();
-                img.src = event.target.result;
-                img.onload = function() {
-                    const canvas = document.createElement('canvas');
-                    const maxW = 1200;
-                    let width = img.naturalWidth;
-                    let height = img.naturalHeight;
-
-                    if (width > maxW) {
-                        height = Math.round((height * maxW) / width);
-                        width = maxW;
-                    }
-
-                    canvas.width = width;
-                    canvas.height = height;
-
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
-
-                    const resizedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
-                    const ratio = `${width} / ${height}`;
-
-                    const data = getStorageData();
-                    data.boards[currentBoardId].cards[activeImageBox.globalIndex].img = resizedDataUrl;
-                    data.boards[currentBoardId].cards[activeImageBox.globalIndex].ratio = ratio;
-
-                    setStorageData(data);
-                    renderGrid();
-                };
-            };
-            reader.readAsDataURL(file);
-            e.target.value = '';
         }
 
         function saveCurrentBoardData() {
             if (!currentBoardId) return;
-
             const data = getStorageData();
             const board = data.boards[currentBoardId];
-            if (!board) return;
-
             board.title = document.getElementById('board-title').value || 'TYPE NAME';
             board.subDetails = document.getElementById('sub-details').value;
-
-            updateTimestampDisplay();
-
             const gridCards = document.querySelectorAll('.card');
             const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-
-            gridCards.forEach((cardEl, idx) => {
-                const globalIndex = startIndex + idx;
-                const descVal = cardEl.querySelector('.card-description').value;
-                const numVal = cardEl.querySelector('.card-number-input').value;
-                if (board.cards[globalIndex]) {
-                    board.cards[globalIndex].desc = descVal;
-                    board.cards[globalIndex].num = numVal;
+            gridCards.forEach((c, idx) => {
+                const gIdx = startIndex + idx;
+                if (board.cards[gIdx]) {
+                    board.cards[gIdx].desc = c.querySelector('.card-description').value;
+                    board.cards[gIdx].num = c.querySelector('.card-number-input').value;
                 }
             });
-
             setStorageData(data);
         }
 
-        function prepareCloneForCapture(clonedDoc) {
-            const clonedExportArea = clonedDoc.getElementById('export-area');
-            if (!clonedExportArea) return;
+        function autoExpand(field) {
+            field.style.height = 'inherit';
+            field.style.height = (field.scrollHeight + 4) + 'px';
+        }
+        function handleTextareaInput(field) { autoExpand(field); saveCurrentBoardData(); }
+        function checkTitleEmpty(input) { if (!input.value.trim()) input.value = 'TYPE NAME'; saveCurrentBoardData(); renderSidebar(); }
+        function updateTitle() { renderSidebar(); }
 
-            const isDark = document.body.classList.contains('dark-mode');
-            const bgBoxColor = isDark ? '#2d2d2d' : '#d0d0d0';
-            const textColor = isDark ? '#e0e0e0' : '#333';
+        function replaceInputsForCapture() {
+            const replacements = [];
+            const container = document.getElementById('export-area');
+            const inputs = container.querySelectorAll('input[type="text"], textarea');
+            inputs.forEach(el => {
+                const div = document.createElement('div');
+                const computedStyle = window.getComputedStyle(el);
+                div.style.fontFamily = computedStyle.fontFamily;
+                div.style.fontSize = computedStyle.fontSize;
+                div.style.fontWeight = computedStyle.fontWeight;
+                div.style.color = computedStyle.color;
+                div.style.textAlign = computedStyle.textAlign;
+                div.style.lineHeight = computedStyle.lineHeight;
+                div.style.padding = computedStyle.padding;
+                div.style.boxSizing = 'border-box';
+                div.style.width = el.offsetWidth + 'px';
+                div.style.height = el.offsetHeight + 'px';
+                div.style.display = 'flex';
+                div.style.alignItems = el.tagName === 'TEXTAREA' ? 'flex-start' : 'center';
+                div.style.justifyContent = computedStyle.textAlign === 'center' ? 'center' : 'flex-start';
+                div.style.whiteSpace = el.tagName === 'TEXTAREA' ? 'pre-wrap' : 'nowrap';
+                div.style.overflow = 'hidden';
+                div.innerText = el.value || el.placeholder;
+                el.parentNode.insertBefore(div, el);
+                el.style.display = 'none';
+                replacements.push({ el, div });
+            });
+            return replacements;
+        }
 
-            clonedExportArea.style.backgroundColor = isDark ? '#121212' : '#f5f5f5';
+        function restoreInputs(replacements) {
+            replacements.forEach(item => {
+                item.el.style.display = '';
+                item.div.remove();
+            });
+        }
 
-            const titleInput = clonedDoc.getElementById('board-title');
-            if (titleInput) {
-                const titleDiv = clonedDoc.createElement('div');
-                titleDiv.innerText = titleInput.value || 'TYPE NAME';
-                titleDiv.style.cssText = `
-                    font-size: 32px;
-                    font-weight: 700;
-                    letter-spacing: -0.5px;
-                    text-align: center;
-                    width: 100%;
-                    margin-bottom: 12px;
-                    line-height: 1.3;
-                    color: ${textColor};
-                    padding: 6px 0;
-                    box-sizing: border-box;
-                `;
-                titleInput.parentNode.replaceChild(titleDiv, titleInput);
+        function autoCropCanvas(canvas, isDark) {
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            const imgData = ctx.getImageData(0, 0, width, height);
+            const data = imgData.data;
+
+            const bgR = isDark ? 18 : 245;
+            const bgG = isDark ? 18 : 245;
+            const bgB = isDark ? 18 : 245;
+
+            function isContent(x, y) {
+                const i = (y * width + x) * 4;
+                if (data[i+3] === 0) return false;
+                const dist = Math.abs(data[i] - bgR) + Math.abs(data[i+1] - bgG) + Math.abs(data[i+2] - bgB);
+                return dist > 15;
             }
 
-            const subDetails = clonedDoc.getElementById('sub-details');
-            if (subDetails) {
-                const subDiv = clonedDoc.createElement('div');
-                subDiv.innerText = subDetails.value || subDetails.placeholder || '';
-                subDiv.style.cssText = `
-                    background-color: ${bgBoxColor};
-                    border-radius: 6px;
-                    padding: 10px 12px;
-                    font-size: 14px;
-                    color: ${subDetails.value ? textColor : '#777'};
-                    width: 100%;
-                    max-width: 400px;
-                    min-height: 60px;
-                    word-break: break-all;
-                    white-space: pre-wrap;
-                    line-height: 1.55;
-                    letter-spacing: -0.3px;
-                    box-sizing: border-box;
-                    text-align: left;
-                `;
-                subDetails.parentNode.replaceChild(subDiv, subDetails);
+            let minY = 0, maxY = height - 1, minX = 0, maxX = width - 1;
+            let found = false;
+
+            for (let y = 0; y < height; y++) {
+                let rowHasContent = false;
+                for (let x = 0; x < width; x += 4) {
+                    if (isContent(x, y) || (x+1 < width && isContent(x+1, y))) { rowHasContent = true; break; }
+                }
+                if (rowHasContent) { minY = y; found = true; break; }
+            }
+            if (!found) return canvas;
+
+            for (let y = height - 1; y >= 0; y--) {
+                let rowHasContent = false;
+                for (let x = 0; x < width; x += 4) {
+                    if (isContent(x, y) || (x+1 < width && isContent(x+1, y))) { rowHasContent = true; break; }
+                }
+                if (rowHasContent) { maxY = y; break; }
             }
 
-            const numInputs = clonedExportArea.querySelectorAll('.card-number-input');
-            numInputs.forEach(input => {
-                const numDiv = clonedDoc.createElement('div');
-                numDiv.innerText = input.value || '';
-                numDiv.style.cssText = `
-                    font-size: 15px;
-                    font-weight: 600;
-                    letter-spacing: -0.2px;
-                    color: ${textColor};
-                    flex: 1;
-                `;
-                input.parentNode.replaceChild(numDiv, input);
-            });
+            for (let x = 0; x < width; x++) {
+                let colHasContent = false;
+                for (let y = minY; y <= maxY; y += 4) {
+                    if (isContent(x, y) || (y+1 <= maxY && isContent(x, y+1))) { colHasContent = true; break; }
+                }
+                if (colHasContent) { minX = x; break; }
+            }
 
-            const descs = clonedExportArea.querySelectorAll('.card-description');
-            descs.forEach(desc => {
-                const descDiv = clonedDoc.createElement('div');
-                descDiv.innerText = desc.value || desc.placeholder || '';
-                descDiv.style.cssText = `
-                    background-color: ${bgBoxColor};
-                    border-radius: 6px;
-                    padding: 10px 12px;
-                    font-size: 14px;
-                    color: ${desc.value ? textColor : '#777'};
-                    width: 100%;
-                    min-height: 52px;
-                    margin-top: 4px;
-                    word-break: break-all;
-                    white-space: pre-wrap;
-                    line-height: 1.55;
-                    letter-spacing: -0.3px;
-                    box-sizing: border-box;
-                    text-align: left;
-                `;
-                desc.parentNode.replaceChild(descDiv, desc);
-            });
+            for (let x = width - 1; x >= 0; x--) {
+                let colHasContent = false;
+                for (let y = minY; y <= maxY; y += 4) {
+                    if (isContent(x, y) || (y+1 <= maxY && isContent(x, y+1))) { colHasContent = true; break; }
+                }
+                if (colHasContent) { maxX = x; break; }
+            }
+
+            const pad = 60;
+            minX = Math.max(0, minX - pad);
+            minY = Math.max(0, minY - pad);
+            maxX = Math.min(width, maxX + pad);
+            maxY = Math.min(height, maxY + pad);
+
+            const cropWidth = maxX - minX;
+            const cropHeight = maxY - minY;
+
+            const cropped = document.createElement('canvas');
+            cropped.width = cropWidth;
+            cropped.height = cropHeight;
+            const cCtx = cropped.getContext('2d');
+            
+            cCtx.fillStyle = isDark ? '#121212' : '#f5f5f5';
+            cCtx.fillRect(0, 0, cropWidth, cropHeight);
+            cCtx.drawImage(canvas, minX, minY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+            
+            return cropped;
         }
 
         function exportBoard(format) {
+            saveGlobalSketch();
             const exportArea = document.getElementById('export-area');
-            const mainContent = document.getElementById('main-content');
-
-            const prevScroll = mainContent.scrollTop;
-            mainContent.scrollTop = 0;
-
+            const prevTransform = exportArea.style.transform;
+            
+            exportArea.style.transform = 'none';
             document.body.classList.add('capturing');
+            const replacements = replaceInputsForCapture();
 
-            html2canvas(exportArea, {
-                scale: 2,
-                useCORS: true,
-                logging: false,
-                scrollX: 0,
-                scrollY: 0,
-                windowWidth: 1200,
-                onclone: (clonedDoc) => prepareCloneForCapture(clonedDoc)
-            }).then(canvas => {
-                const link = document.createElement('a');
-                link.download = `${document.getElementById('board-title').value || 'storyboard'}_page${currentPage}.${format}`;
-                link.href = canvas.toDataURL(`image/${format === 'jpg' ? 'jpeg' : 'png'}`, 1.0);
-                link.click();
+            setTimeout(() => {
+                html2canvas(exportArea, { 
+                    scale: 2, 
+                    useCORS: true, 
+                    backgroundColor: document.body.classList.contains('dark-mode') ? '#121212' : '#f5f5f5',
+                    windowWidth: exportArea.scrollWidth,
+                    windowHeight: exportArea.scrollHeight
+                }).then(baseCanvas => {
+                    const finalCanvas = document.createElement('canvas');
+                    finalCanvas.width = baseCanvas.width;
+                    finalCanvas.height = baseCanvas.height;
+                    const ctx = finalCanvas.getContext('2d');
+                    ctx.drawImage(baseCanvas, 0, 0);
 
-                document.body.classList.remove('capturing');
-                mainContent.scrollTop = prevScroll;
-            }).catch(() => {
-                document.body.classList.remove('capturing');
-                mainContent.scrollTop = prevScroll;
-            });
+                    if (globalCanvas.width > 0 && globalCanvas.height > 0) {
+                        ctx.drawImage(globalCanvas, 0, 0, finalCanvas.width, finalCanvas.height);
+                    }
+
+                    const isDark = document.body.classList.contains('dark-mode');
+                    const croppedCanvas = autoCropCanvas(finalCanvas, isDark);
+
+                    const link = document.createElement('a');
+                    link.download = `${document.getElementById('board-title').value || 'storyboard'}.${format}`;
+                    link.href = croppedCanvas.toDataURL(`image/${format === 'jpg' ? 'jpeg' : 'png'}`, 1.0);
+                    link.click();
+                    
+                    restoreInputs(replacements);
+                    document.body.classList.remove('capturing');
+                    exportArea.style.transform = prevTransform;
+                });
+            }, 150);
         }
 
         function exportPDF() {
+            saveGlobalSketch();
             const exportArea = document.getElementById('export-area');
-            const mainContent = document.getElementById('main-content');
-
-            const prevScroll = mainContent.scrollTop;
-            mainContent.scrollTop = 0;
-
+            const prevTransform = exportArea.style.transform;
+            
+            exportArea.style.transform = 'none';
             document.body.classList.add('capturing');
+            const replacements = replaceInputsForCapture();
 
-            html2canvas(exportArea, {
-                scale: 2,
-                useCORS: true,
-                logging: false,
-                scrollX: 0,
-                scrollY: 0,
-                windowWidth: 1200,
-                onclone: (clonedDoc) => prepareCloneForCapture(clonedDoc)
-            }).then(canvas => {
-                const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF('p', 'mm', 'a4');
+            setTimeout(() => {
+                html2canvas(exportArea, { 
+                    scale: 2, 
+                    useCORS: true, 
+                    backgroundColor: document.body.classList.contains('dark-mode') ? '#121212' : '#f5f5f5',
+                    windowWidth: exportArea.scrollWidth,
+                    windowHeight: exportArea.scrollHeight
+                }).then(baseCanvas => {
+                    const finalCanvas = document.createElement('canvas');
+                    finalCanvas.width = baseCanvas.width;
+                    finalCanvas.height = baseCanvas.height;
+                    const ctx = finalCanvas.getContext('2d');
+                    ctx.drawImage(baseCanvas, 0, 0);
+                    
+                    if (globalCanvas.width > 0 && globalCanvas.height > 0) {
+                        ctx.drawImage(globalCanvas, 0, 0, finalCanvas.width, finalCanvas.height);
+                    }
 
-                const imgData = canvas.toDataURL('image/jpeg', 0.95);
-                const imgWidth = 210;
-                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                    const isDark = document.body.classList.contains('dark-mode');
+                    const croppedCanvas = autoCropCanvas(finalCanvas, isDark);
 
-                pdf.addImage(imgData, 'JPEG', 0, 10, imgWidth, imgHeight);
-                pdf.save(`${document.getElementById('board-title').value || 'storyboard'}_page${currentPage}.pdf`);
-
-                document.body.classList.remove('capturing');
-                mainContent.scrollTop = prevScroll;
-            }).catch(() => {
-                document.body.classList.remove('capturing');
-                mainContent.scrollTop = prevScroll;
-            });
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF('p', 'mm', 'a4');
+                    const imgData = croppedCanvas.toDataURL('image/jpeg', 0.95);
+                    const imgWidth = 210;
+                    const imgHeight = (croppedCanvas.height * imgWidth) / croppedCanvas.width;
+                    pdf.addImage(imgData, 'JPEG', 0, 10, imgWidth, imgHeight);
+                    pdf.save(`${document.getElementById('board-title').value || 'storyboard'}.pdf`);
+                    
+                    restoreInputs(replacements);
+                    document.body.classList.remove('capturing');
+                    exportArea.style.transform = prevTransform;
+                });
+            }, 150);
         }
     </script>
 </body>
