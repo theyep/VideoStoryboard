@@ -81,6 +81,7 @@
 
         #sidebar {
             width: 260px;
+            max-width: 80vw;
             background-color: var(--sidebar-bg);
             color: #fff;
             display: flex;
@@ -173,15 +174,31 @@
             font-weight: bold;
         }
 
-        #main-content {
+        /* Wraps the fixed top-bar and the scrollable main-content together,
+           so main-content can be the ONE and ONLY scrolling element on the
+           page. Previously the top-bar lived *inside* main-content and used
+           position:sticky to stay put — sticky re-derives its on-screen
+           position from the scroll container on every scroll/zoom tick, so
+           any reflow while panning (canvas resize, scrollbar show/hide,
+           etc.) could make it visibly lag or drift for a frame. Pulling it
+           completely out of the scrolling element removes that dependency
+           entirely: it simply never scrolls, full stop. */
+        #content-wrapper {
             flex-grow: 1;
             display: flex;
             flex-direction: column;
             height: 100vh;
             height: 100dvh;
-            overflow: auto; 
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        #main-content {
+            flex-grow: 1;
+            overflow: auto;
             width: 100%;
             min-width: 0;
+            min-height: 0;
         }
 
         #main-content.panning {
@@ -194,12 +211,13 @@
             background-color: var(--topbar-bg);
             border-bottom: 1px solid var(--topbar-border);
             display: flex;
+            flex-wrap: wrap;
             justify-content: space-between;
             align-items: center;
-            position: sticky;
-            top: 0;
+            flex-shrink: 0;
             z-index: 2600;
-            gap: 15px;
+            gap: 10px 15px;
+            row-gap: 8px;
         }
 
         .btn-group {
@@ -320,7 +338,7 @@
             min-height: calc(100vh - 60px);
             display: flex;
             flex-direction: column;
-            align-items: center;
+            align-items: flex-start;
             flex-grow: 1;
             position: relative;
             width: 100%;
@@ -438,7 +456,7 @@
         .add-more-btn { padding: 8px 16px; background-color: #555; color: white; border: none; border-radius: 20px; cursor: pointer; font-weight: 500; font-size: 13px; }
         input[type="file"] { display: none; }
 
-        @media (min-width: 768px) {
+        @media (min-width: 1024px) {
             #sidebar { position: relative; left: 0; }
             .toggle-btn { display: none; }
             #sidebar-overlay { display: none !important; }
@@ -463,6 +481,87 @@
             box-shadow: none !important;
             resize: none !important;
         }
+
+        /* ============================================================
+           Responsive: tablet & mobile
+           (kept at the end of the stylesheet so these rules correctly
+           override the desktop defaults above at matching specificity)
+           ============================================================ */
+
+        /* Tablet (portrait tablets, small laptops, narrow windows) */
+        @media (max-width: 1023px) {
+            .board-grid { grid-template-columns: repeat(2, 1fr); }
+
+            #export-area { padding: 30px 20px; }
+
+            #floating-zoom-panel {
+                top: auto;
+                bottom: 90px;
+                right: 15px;
+                padding: 6px 10px;
+                gap: 6px;
+            }
+        }
+
+        /* Mobile phones */
+        @media (max-width: 599px) {
+            .top-bar { padding: 8px 12px; }
+            .export-btn { padding: 7px 10px; font-size: 12px; }
+            .timestamp-display { display: none; }
+
+            .board-grid { grid-template-columns: 1fr; gap: 14px; }
+
+            #export-area { padding: 20px 12px; }
+            .header-section { margin-bottom: 16px; }
+            .title-input { font-size: clamp(20px, 6vw, 28px); width: 100%; }
+            .sub-details { max-width: 100%; }
+
+            .controls-container {
+                bottom: 12px;
+                padding: 8px 12px;
+                gap: 10px;
+                max-width: calc(100vw - 24px);
+            }
+            .pagination { max-width: 100%; overflow-x: auto; flex-wrap: nowrap; }
+            .add-more-btn { padding: 7px 12px; font-size: 12px; white-space: nowrap; }
+
+            #floating-zoom-panel {
+                bottom: 78px;
+                right: 10px;
+                padding: 5px 8px;
+                font-size: 12px;
+            }
+            #floating-zoom-panel span { min-width: 34px; }
+            #floating-zoom-panel button { padding: 3px 8px; }
+
+            #global-draw-toolbar {
+                left: 8px;
+                right: 8px;
+                transform: none;
+                width: auto;
+                flex-wrap: wrap;
+                justify-content: center;
+                padding: 10px 14px;
+                gap: 10px;
+                bottom: 12px;
+            }
+
+            .draw-modal-content { padding: 16px; gap: 10px; }
+            #drawing-canvas { height: 55vh; max-height: 320px; }
+
+            .card-header { gap: 4px; }
+            .card-number-input { font-size: 14px; }
+        }
+
+        /* Touch devices (phones/tablets): slightly larger tap targets */
+        @media (pointer: coarse) {
+            .duplicate-card-btn, .delete-card-btn {
+                width: 28px; height: 28px; font-size: 13px;
+            }
+            .card-drag-handle { padding: 6px; font-size: 16px; }
+            .duplicate-board-btn, .delete-board-btn { padding: 8px 8px; }
+            .overlay-btn { padding: 10px 14px; font-size: 13px; }
+        }
     </style>
 </head>
 <body>
@@ -475,7 +574,7 @@
         <button class="add-btn" onclick="createNewBoard()">+</button>
     </div>
 
-    <div id="main-content">
+    <div id="content-wrapper">
         <div class="top-bar">
             <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
             <div class="btn-group">
@@ -486,17 +585,19 @@
                 <button class="export-btn" onclick="exportBoard('jpeg')">JPG 저장</button>
                 <button class="export-btn pdf-btn" onclick="exportPDF()">PDF 내보내기</button>
             </div>
-            <div class="timestamp-display" id="timestamp-display">최종 사이트 수정: 2026년 9월 4일</div>
+            <div class="timestamp-display" id="timestamp-display">최종 사이트 수정: 2026년 9월 5일</div>
         </div>
 
-        <div id="storyboard-container">
-            <div id="export-area">
-                <canvas id="global-canvas"></canvas>
-                <div class="header-section">
-                    <input type="text" class="title-input" id="board-title" value="TYPE NAME" onblur="checkTitleEmpty(this)" oninput="updateTitle(this.value)">
-                    <textarea class="auto-expand-textarea sub-details" id="sub-details" placeholder="Sub Details" oninput="handleTextareaInput(this)"></textarea>
+        <div id="main-content">
+            <div id="storyboard-container">
+                <div id="export-area">
+                    <canvas id="global-canvas"></canvas>
+                    <div class="header-section">
+                        <input type="text" class="title-input" id="board-title" value="TYPE NAME" onblur="checkTitleEmpty(this)" oninput="updateTitle(this.value)">
+                        <textarea class="auto-expand-textarea sub-details" id="sub-details" placeholder="Sub Details" oninput="handleTextareaInput(this)"></textarea>
+                    </div>
+                    <div class="board-grid" id="board-grid"></div>
                 </div>
-                <div class="board-grid" id="board-grid"></div>
             </div>
         </div>
     </div>
@@ -633,6 +734,40 @@
             }
         });
 
+        // Touch equivalent of the mouse-drag panning above, for tablet/mobile.
+        // Only a single finger triggers panning here; pinch/2-finger gestures
+        // are left alone (browser default) rather than being hijacked.
+        mainContent.addEventListener('touchstart', (e) => {
+            if (isGlobalModeActive) return;
+            if (e.touches.length !== 1) return;
+            if (isInteractiveTarget(e.target)) return;
+
+            isPanning = true;
+            mainContent.classList.add('panning');
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+            scrollLeft = mainContent.scrollLeft;
+            scrollTop = mainContent.scrollTop;
+        }, { passive: true });
+
+        mainContent.addEventListener('touchmove', (e) => {
+            if (!isPanning || e.touches.length !== 1) return;
+            e.preventDefault();
+            const walkX = e.touches[0].clientX - startX;
+            const walkY = e.touches[0].clientY - startY;
+            mainContent.scrollLeft = scrollLeft - walkX;
+            mainContent.scrollTop = scrollTop - walkY;
+        }, { passive: false });
+
+        function endTouchPan() {
+            if (isPanning) {
+                isPanning = false;
+                mainContent.classList.remove('panning');
+            }
+        }
+        mainContent.addEventListener('touchend', endTouchPan);
+        mainContent.addEventListener('touchcancel', endTouchPan);
+
         window.addEventListener('keydown', (e) => {
             if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
                 if (document.getElementById('draw-modal').classList.contains('show')) {
@@ -645,6 +780,23 @@
             }
         });
 
+        // Recenters #export-area inside the #main-content viewport, using
+        // measured (post-transform) geometry rather than relying on flexbox
+        // centering. #storyboard-container used to have align-items:center,
+        // but centering an intentionally-overflowing flex child that way is
+        // ambiguous across browsers: the "start" side of the overflow can
+        // become unreachable by scrolling, which is what made panning feel
+        // broken and made zoom re-centering drift. Now the container is
+        // align-items:flex-start (deterministic, scrollLeft/Top = 0 is the
+        // true top-left), and this function does the centering explicitly.
+        function centerExportArea() {
+            const exportArea = document.getElementById('export-area');
+            const containerRect = mainContent.getBoundingClientRect();
+            const rect = exportArea.getBoundingClientRect();
+            mainContent.scrollLeft += (rect.left - containerRect.left) - (containerRect.width - rect.width) / 2;
+            mainContent.scrollTop += (rect.top - containerRect.top) - (containerRect.height - rect.height) / 2;
+        }
+
         function setZoom(level) {
             const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, level));
             if (Math.abs(newZoom - currentZoom) < 0.001) return;
@@ -654,25 +806,35 @@
             const centerScreenX = containerRect.left + containerRect.width / 2;
             const centerScreenY = containerRect.top + containerRect.height / 2;
 
-            const exportRect = exportArea.getBoundingClientRect();
-            const localX = (centerScreenX - exportRect.left) / currentZoom;
-            const localY = (centerScreenY - exportRect.top) / currentZoom;
+            // Anchor point: which point of the (unscaled) export-area content
+            // currently sits at the viewport center, measured at the CURRENT
+            // zoom level, before anything changes.
+            const oldRect = exportArea.getBoundingClientRect();
+            const localX = (centerScreenX - oldRect.left) / currentZoom;
+            const localY = (centerScreenY - oldRect.top) / currentZoom;
 
             currentZoom = newZoom;
             exportArea.style.transform = `scale(${currentZoom})`;
             document.getElementById('zoom-level-text').innerText = Math.round(currentZoom * 100) + '%';
 
-            const newScreenX = exportRect.left + localX * currentZoom;
-            const newScreenY = exportRect.top + localY * currentZoom;
-
-            mainContent.scrollLeft += (newScreenX - centerScreenX);
-            mainContent.scrollTop += (newScreenY - centerScreenY);
-
+            // initGlobalCanvasSize() resizes export-area for the new zoom
+            // level, and because export-area is centered inside its parent,
+            // that resize can shift export-area's on-screen position too.
+            // Run it BEFORE computing the scroll correction so we measure the
+            // real, final position instead of a now-stale one — using the
+            // stale rect here was the cause of the left-drift/crop bug.
             initGlobalCanvasSize();
+
+            const newRect = exportArea.getBoundingClientRect();
+            const targetScreenX = newRect.left + localX * currentZoom;
+            const targetScreenY = newRect.top + localY * currentZoom;
+
+            mainContent.scrollLeft += (targetScreenX - centerScreenX);
+            mainContent.scrollTop += (targetScreenY - centerScreenY);
         }
         function zoomIn() { setZoom(currentZoom + 0.1); }
         function zoomOut() { setZoom(currentZoom - 0.1); }
-        function resetZoom() { setZoom(1.0); }
+        function resetZoom() { setZoom(1.0); centerExportArea(); }
 
         function toggleDarkMode() {
             const isDark = document.body.classList.toggle('dark-mode');
@@ -1117,6 +1279,7 @@
             setTimeout(() => {
                 initGlobalCanvasSize();
                 loadGlobalSketch();
+                centerExportArea();
             }, 50);
         }
 
